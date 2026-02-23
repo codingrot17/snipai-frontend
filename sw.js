@@ -8,8 +8,8 @@ const PRECACHE = [
     "/style.css",
     "/app.js",
     "/manifest.json",
-    "/icons/icon-192.svg",
-    "/icons/icon-512.svg"
+    "/icons/icon-192.png",
+    "/icons/icon-512.png"
 ];
 
 // ── Install: precache all shell assets ─────────────────────
