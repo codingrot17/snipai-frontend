@@ -3,7 +3,15 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="description" content="AI-powered code snippet manager" />
+        <meta name="theme-color" content="#7c6af7" />
+
         <title>SnipAI — Code Snippet Manager</title>
+
+        <!-- PWA -->
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
+
         <link rel="stylesheet" href="style.css" />
         <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
     </head>
@@ -49,7 +57,7 @@
             </ul>
         </aside>
 
-        <!-- ── MAIN PANEL ──────────────────────────────────── -->
+        <!-- ── MAIN ────────────────────────────────────────── -->
         <main class="main" id="main">
             <header class="toolbar">
                 <div class="toolbar-left">
@@ -117,7 +125,6 @@
                     <div class="tags-wrap" id="tagsWrap"></div>
                     <div id="viewEditor" class="editor-wrap"></div>
 
-                    <!-- AI explanation panel (hidden until requested) -->
                     <div
                         class="explain-panel"
                         id="explainPanel"
@@ -125,11 +132,7 @@
                     >
                         <div class="explain-header">
                             <span>✦ AI Explanation</span>
-                            <button
-                                class="btn-icon"
-                                id="closeExplainBtn"
-                                title="Close"
-                            >
+                            <button class="btn-icon" id="closeExplainBtn">
                                 ✕
                             </button>
                         </div>
@@ -141,7 +144,6 @@
             <!-- Form Panel -->
             <section class="panel" id="formPanel" style="display: none">
                 <form class="snippet-form" id="snippetForm">
-                    <!-- AI status bar — shows while analyzing -->
                     <div class="ai-status" id="aiStatus" style="display: none">
                         <span class="ai-spinner"></span>
                         <span id="aiStatusText"
@@ -187,6 +189,18 @@
         </main>
 
         <div class="toast" id="toast"></div>
+
+        <script>
+            // Register service worker
+            if ("serviceWorker" in navigator) {
+                window.addEventListener("load", () => {
+                    navigator.serviceWorker
+                        .register("/sw.js")
+                        .then(() => console.log("SW registered ✅"))
+                        .catch(err => console.warn("SW failed:", err));
+                });
+            }
+        </script>
         <script src="app.js"></script>
     </body>
 </html>
