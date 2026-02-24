@@ -5,8 +5,6 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta name="description" content="AI-powered code snippet manager" />
         <meta name="theme-color" content="#7c6af7" />
-
-        <!-- iOS PWA -->
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta
             name="apple-mobile-web-app-status-bar-style"
@@ -19,173 +17,349 @@
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
         <link rel="icon" type="image/png" href="/icons/icon-192.png" />
-
         <link rel="stylesheet" href="style.css" />
         <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
     </head>
     <body>
-        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+        <!-- ── AUTH SCREEN ─────────────────────────────────────── -->
+        <div class="auth-screen" id="authScreen">
+            <div class="auth-box">
+                <div class="auth-logo">⚡ SnipAI</div>
+                <p class="auth-tagline">Your AI-powered code snippet manager</p>
 
-        <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <span class="logo">⚡ SnipAI</span>
-                <button class="btn-icon" id="newSnippetBtn" title="New Snippet">
-                    ＋
-                </button>
-            </div>
+                <!-- Tab switcher -->
+                <div class="auth-tabs">
+                    <button class="auth-tab active" data-tab="login">
+                        Sign In
+                    </button>
+                    <button class="auth-tab" data-tab="register">
+                        Register
+                    </button>
+                </div>
 
-            <div class="search-wrap">
-                <input
-                    type="text"
-                    id="searchInput"
-                    placeholder="Search snippets..."
-                    autocomplete="off"
-                />
-            </div>
+                <!-- Login form -->
+                <div class="auth-form" id="loginForm">
+                    <input
+                        class="auth-input"
+                        type="email"
+                        id="loginEmail"
+                        placeholder="Email"
+                    />
+                    <input
+                        class="auth-input"
+                        type="password"
+                        id="loginPassword"
+                        placeholder="Password"
+                    />
+                    <button class="btn btn-primary auth-submit" id="loginBtn">
+                        Sign In
+                    </button>
+                    <p class="auth-error" id="loginError"></p>
+                </div>
 
-            <div class="filter-wrap">
-                <select id="langFilter">
-                    <option value="">All Languages</option>
-                    <option value="javascript">JavaScript</option>
-                    <option value="typescript">TypeScript</option>
-                    <option value="python">Python</option>
-                    <option value="html">HTML</option>
-                    <option value="css">CSS</option>
-                    <option value="json">JSON</option>
-                    <option value="bash">Bash</option>
-                    <option value="sql">SQL</option>
-                    <option value="plaintext">Plain Text</option>
-                </select>
-            </div>
-
-            <ul class="snippet-list" id="snippetList">
-                <li class="empty-state">No snippets yet. Create one!</li>
-            </ul>
-            <!-- install button is now injected dynamically by app.js -->
-        </aside>
-
-        <main class="main" id="main">
-            <header class="toolbar">
-                <div class="toolbar-left">
-                    <button class="btn-icon" id="sidebarToggle">☰</button>
-                    <span class="snippet-title-display" id="snippetTitleDisplay"
-                        >Select a snippet</span
+                <!-- Register form -->
+                <div class="auth-form hidden" id="registerForm">
+                    <input
+                        class="auth-input"
+                        type="text"
+                        id="regName"
+                        placeholder="Your name"
+                    />
+                    <input
+                        class="auth-input"
+                        type="email"
+                        id="regEmail"
+                        placeholder="Email"
+                    />
+                    <input
+                        class="auth-input"
+                        type="password"
+                        id="regPassword"
+                        placeholder="Password (min 8 chars)"
+                    />
+                    <button
+                        class="btn btn-primary auth-submit"
+                        id="registerBtn"
                     >
+                        Create Account
+                    </button>
+                    <p class="auth-error" id="registerError"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── SETTINGS MODAL ──────────────────────────────────── -->
+        <div class="modal-backdrop" id="settingsBackdrop" style="display: none">
+            <div class="modal-box" id="settingsModal">
+                <div class="modal-header">
+                    <span>⚙ Settings</span>
+                    <button class="btn-icon" id="closeSettings">✕</button>
                 </div>
 
-                <div
-                    class="toolbar-right"
-                    id="toolbarView"
-                    style="display: none"
-                >
-                    <span class="lang-badge" id="langBadge"></span>
-                    <button class="btn btn-ghost" id="copyBtn">Copy</button>
-                    <button class="btn btn-ai" id="explainBtn">
-                        ✦ Explain
-                    </button>
-                    <button class="btn btn-ghost" id="editBtn">Edit</button>
-                    <button class="btn btn-danger" id="deleteBtn">
-                        Delete
-                    </button>
-                </div>
-
-                <div
-                    class="toolbar-right"
-                    id="toolbarForm"
-                    style="display: none"
-                >
-                    <span class="autosave-status" id="autosaveStatus"></span>
-                    <button class="btn btn-ai" id="analyzeBtn" type="button">
-                        ✦ AI Fill
-                    </button>
-                    <button class="btn btn-ghost" id="cancelBtn" type="button">
-                        Cancel
-                    </button>
-                    <button class="btn btn-primary" id="saveBtn" type="button">
-                        Save
-                    </button>
-                </div>
-            </header>
-
-            <section class="panel" id="viewPanel">
-                <div class="welcome" id="welcomeMsg">
-                    <p>⚡ Welcome to <strong>SnipAI</strong></p>
-                    <p>Paste code, let AI tag and explain it for you.</p>
-                    <button class="btn btn-primary" id="welcomeNewBtn">
-                        Create your first snippet
-                    </button>
-                </div>
-
-                <div
-                    class="snippet-detail"
-                    id="snippetDetail"
-                    style="display: none"
-                >
-                    <p class="snippet-desc" id="snippetDesc"></p>
-                    <div class="tags-wrap" id="tagsWrap"></div>
-                    <div id="viewEditor" class="editor-wrap"></div>
-                    <div
-                        class="explain-panel"
-                        id="explainPanel"
-                        style="display: none"
+                <div class="settings-section">
+                    <label class="settings-label">Account</label>
+                    <div class="settings-user" id="settingsUser"></div>
+                    <button
+                        class="btn btn-danger settings-logout"
+                        id="logoutBtn"
                     >
-                        <div class="explain-header">
-                            <span>✦ AI Explanation</span>
-                            <button class="btn-icon" id="closeExplainBtn">
-                                ✕
-                            </button>
-                        </div>
-                        <p class="explain-text" id="explainText"></p>
+                        Sign Out
+                    </button>
+                </div>
+
+                <div class="settings-section">
+                    <label class="settings-label">
+                        ✦ Groq API Key
+                        <span class="settings-hint"
+                            >Required for AI features</span
+                        >
+                    </label>
+                    <div class="groq-key-wrap">
+                        <input
+                            class="auth-input"
+                            type="password"
+                            id="groqKeyInput"
+                            placeholder="gsk_xxxxxxxxxxxxxxxxxxxxxxxx"
+                        />
+                        <button class="btn btn-primary" id="saveGroqKey">
+                            Save
+                        </button>
+                    </div>
+                    <p class="settings-note">
+                        Get a free key at
+                        <a href="https://console.groq.com" target="_blank"
+                            >console.groq.com</a
+                        >. Stored securely in your account — works across
+                        devices.
+                    </p>
+                    <p class="groq-status" id="groqStatus"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── MAIN APP (hidden until logged in) ───────────────── -->
+        <div class="app-shell" id="appShell" style="display: none">
+            <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <span class="logo">⚡ SnipAI</span>
+                    <div class="sidebar-header-actions">
+                        <button
+                            class="btn-icon"
+                            id="settingsBtn"
+                            title="Settings"
+                        >
+                            ⚙
+                        </button>
+                        <button
+                            class="btn-icon"
+                            id="newSnippetBtn"
+                            title="New Snippet"
+                        >
+                            ＋
+                        </button>
                     </div>
                 </div>
-            </section>
 
-            <section class="panel" id="formPanel" style="display: none">
-                <form class="snippet-form" id="snippetForm">
-                    <div class="ai-status" id="aiStatus" style="display: none">
-                        <span class="ai-spinner"></span>
-                        <span id="aiStatusText"
-                            >AI is analyzing your code…</span
+                <div class="user-bar" id="userBar"></div>
+
+                <div class="search-wrap">
+                    <input
+                        type="text"
+                        id="searchInput"
+                        placeholder="Search snippets..."
+                        autocomplete="off"
+                    />
+                </div>
+
+                <div class="filter-wrap">
+                    <select id="langFilter">
+                        <option value="">All Languages</option>
+                        <option value="javascript">JavaScript</option>
+                        <option value="typescript">TypeScript</option>
+                        <option value="python">Python</option>
+                        <option value="html">HTML</option>
+                        <option value="css">CSS</option>
+                        <option value="json">JSON</option>
+                        <option value="bash">Bash</option>
+                        <option value="sql">SQL</option>
+                        <option value="plaintext">Plain Text</option>
+                    </select>
+                </div>
+
+                <ul class="snippet-list" id="snippetList">
+                    <li class="empty-state">No snippets yet. Create one!</li>
+                </ul>
+            </aside>
+
+            <main class="main" id="main">
+                <header class="toolbar">
+                    <div class="toolbar-left">
+                        <button class="btn-icon" id="sidebarToggle">☰</button>
+                        <span
+                            class="snippet-title-display"
+                            id="snippetTitleDisplay"
+                            >Select a snippet</span
                         >
                     </div>
-                    <div class="form-row">
-                        <input
-                            type="text"
-                            id="formTitle"
-                            placeholder="Snippet title…"
-                        />
-                    </div>
-                    <div class="form-row two-col">
-                        <select id="formLang">
-                            <option value="javascript">JavaScript</option>
-                            <option value="typescript">TypeScript</option>
-                            <option value="python">Python</option>
-                            <option value="html">HTML</option>
-                            <option value="css">CSS</option>
-                            <option value="json">JSON</option>
-                            <option value="bash">Bash</option>
-                            <option value="sql">SQL</option>
-                            <option value="plaintext">Plain Text</option>
-                        </select>
-                        <input
-                            type="text"
-                            id="formTags"
-                            placeholder="Tags: fetch, async, api"
-                        />
-                    </div>
-                    <div class="form-row">
-                        <input
-                            type="text"
-                            id="formDesc"
-                            placeholder="Short description (optional)"
-                        />
-                    </div>
-                    <div id="formEditor" class="editor-wrap"></div>
-                </form>
-            </section>
-        </main>
 
-        <div class="toast" id="toast"></div>
+                    <!-- View toolbar -->
+                    <div
+                        class="toolbar-right"
+                        id="toolbarView"
+                        style="display: none"
+                    >
+                        <span class="lang-badge" id="langBadge"></span>
+                        <span
+                            class="visibility-badge"
+                            id="visibilityBadge"
+                        ></span>
+                        <button class="btn btn-ghost" id="copyBtn">Copy</button>
+                        <button class="btn btn-ai" id="explainBtn">
+                            ✦ Explain
+                        </button>
+                        <button class="btn btn-ghost" id="editBtn">Edit</button>
+                        <button class="btn btn-danger" id="deleteBtn">
+                            Delete
+                        </button>
+                    </div>
+
+                    <!-- Form toolbar -->
+                    <div
+                        class="toolbar-right"
+                        id="toolbarForm"
+                        style="display: none"
+                    >
+                        <span
+                            class="autosave-status"
+                            id="autosaveStatus"
+                        ></span>
+                        <button
+                            class="btn btn-ai"
+                            id="analyzeBtn"
+                            type="button"
+                        >
+                            ✦ AI Fill
+                        </button>
+                        <button
+                            class="btn btn-ghost"
+                            id="cancelBtn"
+                            type="button"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            class="btn btn-primary"
+                            id="saveBtn"
+                            type="button"
+                        >
+                            Save
+                        </button>
+                    </div>
+                </header>
+
+                <!-- View Panel -->
+                <section class="panel" id="viewPanel">
+                    <div class="welcome" id="welcomeMsg">
+                        <p>⚡ Welcome to <strong>SnipAI</strong></p>
+                        <p>Paste code, let AI tag and explain it for you.</p>
+                        <button class="btn btn-primary" id="welcomeNewBtn">
+                            Create your first snippet
+                        </button>
+                    </div>
+
+                    <div
+                        class="snippet-detail"
+                        id="snippetDetail"
+                        style="display: none"
+                    >
+                        <p class="snippet-desc" id="snippetDesc"></p>
+                        <div class="tags-wrap" id="tagsWrap"></div>
+                        <div id="viewEditor" class="editor-wrap"></div>
+                        <div
+                            class="explain-panel"
+                            id="explainPanel"
+                            style="display: none"
+                        >
+                            <div class="explain-header">
+                                <span>✦ AI Explanation</span>
+                                <button class="btn-icon" id="closeExplainBtn">
+                                    ✕
+                                </button>
+                            </div>
+                            <p class="explain-text" id="explainText"></p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Form Panel -->
+                <section class="panel" id="formPanel" style="display: none">
+                    <form class="snippet-form" id="snippetForm">
+                        <div
+                            class="ai-status"
+                            id="aiStatus"
+                            style="display: none"
+                        >
+                            <span class="ai-spinner"></span>
+                            <span id="aiStatusText"
+                                >AI is analyzing your code…</span
+                            >
+                        </div>
+
+                        <div class="form-row">
+                            <input
+                                type="text"
+                                id="formTitle"
+                                placeholder="Snippet title…"
+                            />
+                        </div>
+                        <div class="form-row two-col">
+                            <select id="formLang">
+                                <option value="javascript">JavaScript</option>
+                                <option value="typescript">TypeScript</option>
+                                <option value="python">Python</option>
+                                <option value="html">HTML</option>
+                                <option value="css">CSS</option>
+                                <option value="json">JSON</option>
+                                <option value="bash">Bash</option>
+                                <option value="sql">SQL</option>
+                                <option value="plaintext">Plain Text</option>
+                            </select>
+                            <input
+                                type="text"
+                                id="formTags"
+                                placeholder="Tags: fetch, async, api"
+                            />
+                        </div>
+                        <div class="form-row">
+                            <input
+                                type="text"
+                                id="formDesc"
+                                placeholder="Short description (optional)"
+                            />
+                        </div>
+
+                        <!-- Visibility toggle -->
+                        <div class="form-row visibility-row">
+                            <label class="toggle-wrap">
+                                <input type="checkbox" id="formPublic" />
+                                <span class="toggle-slider"></span>
+                                <span class="toggle-label">Make public</span>
+                            </label>
+                            <span class="visibility-hint" id="visibilityHint"
+                                >Only you can see this snippet</span
+                            >
+                        </div>
+
+                        <div id="formEditor" class="editor-wrap"></div>
+                    </form>
+                </section>
+            </main>
+
+            <div class="toast" id="toast"></div>
+        </div>
+        <!-- end app-shell -->
 
         <script>
             if ("serviceWorker" in navigator) {
@@ -197,6 +371,6 @@
                 });
             }
         </script>
-        <script src="app.js"></script>
+        <script type="module" src="app.js"></script>
     </body>
 </html>

@@ -1,315 +1,251 @@
-// ── Config ─────────────────────────────────────────────────
-const API = "https://snipai-backend-production.up.railway.app";
-const AUTOSAVE_DELAY = 2000;
+import { Auth, Snippets, AI, GroqKey } from "./appwrite.js";
 
-// ── State ──────────────────────────────────────────────────
-let snippets = [];
-let activeId = null;
-let viewEditor = null;
-let formEditor = null;
-let editingId = null;
-let autosaveTimer = null;
-let isDirty = false;
-let aiRunning = false;
-let deferredPrompt = null; // holds beforeinstallprompt event
-
-// ── DOM Refs ───────────────────────────────────────────────
-const snippetList = document.getElementById("snippetList");
-const searchInput = document.getElementById("searchInput");
-const langFilter = document.getElementById("langFilter");
-const viewPanel = document.getElementById("viewPanel");
-const formPanel = document.getElementById("formPanel");
-const welcomeMsg = document.getElementById("welcomeMsg");
-const snippetDetail = document.getElementById("snippetDetail");
-const snippetTitleDisplay = document.getElementById("snippetTitleDisplay");
-const toolbarView = document.getElementById("toolbarView");
-const toolbarForm = document.getElementById("toolbarForm");
-const langBadge = document.getElementById("langBadge");
-const snippetDesc = document.getElementById("snippetDesc");
-const tagsWrap = document.getElementById("tagsWrap");
-const formTitle = document.getElementById("formTitle");
-const formLang = document.getElementById("formLang");
-const formTags = document.getElementById("formTags");
-const formDesc = document.getElementById("formDesc");
-const autosaveStatus = document.getElementById("autosaveStatus");
-const aiStatus = document.getElementById("aiStatus");
-const aiStatusText = document.getElementById("aiStatusText");
-const explainPanel = document.getElementById("explainPanel");
-const explainText = document.getElementById("explainText");
-const toast = document.getElementById("toast");
-const sidebar = document.getElementById("sidebar");
-const overlay = document.getElementById("sidebarOverlay");
-
-// ── PWA Install — MCE style (dynamic, appended to body) ────
-
-// Inject install button + guide modal styles once
-const pwaStyles = document.createElement("style");
-pwaStyles.textContent = `
-  #snipai-install-btn {
-    position: fixed;
-    bottom: 24px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: linear-gradient(135deg, #7c6af7 0%, #a78bfa 100%);
-    color: #fff;
-    border: none;
-    padding: 13px 28px;
-    border-radius: 50px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    box-shadow: 0 4px 20px rgba(124, 106, 247, 0.45);
-    z-index: 998;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    animation: snipai-slideup 0.35s ease-out;
-    touch-action: manipulation;
-    white-space: nowrap;
-  }
-
-  #snipai-install-btn:active {
-    transform: translateX(-50%) scale(0.97);
-  }
-
-  @keyframes snipai-slideup {
-    from { opacity: 0; transform: translateX(-50%) translateY(20px); }
-    to   { opacity: 1; transform: translateX(-50%) translateY(0); }
-  }
-
-  /* Guide modal */
-  #snipai-guide {
-    position: fixed;
-    inset: 0;
-    z-index: 1000;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity 0.25s ease;
-  }
-
-  #snipai-guide.guide-visible { opacity: 1; }
-
-  .snipai-backdrop {
-    position: absolute;
-    inset: 0;
-    background: rgba(0,0,0,0.6);
-    backdrop-filter: blur(3px);
-    -webkit-backdrop-filter: blur(3px);
-  }
-
-  .snipai-guide-box {
-    position: relative;
-    background: #1a1d27;
-    border: 1px solid #2a2d3a;
-    border-radius: 20px 20px 0 0;
-    padding: 24px 20px 36px;
-    width: 100%;
-    max-width: 480px;
-    transform: translateY(30px);
-    transition: transform 0.25s ease;
-    z-index: 1;
-  }
-
-  #snipai-guide.guide-visible .snipai-guide-box {
-    transform: translateY(0);
-  }
-
-  .snipai-guide-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-weight: 700;
-    font-size: 16px;
-    color: #7c6af7;
-    margin-bottom: 10px;
-  }
-
-  .snipai-close {
-    background: transparent;
-    border: none;
-    color: #6b7280;
-    font-size: 18px;
-    cursor: pointer;
-    padding: 4px 8px;
-    border-radius: 6px;
-    line-height: 1;
-    touch-action: manipulation;
-  }
-
-  .snipai-close:active { background: rgba(255,255,255,0.08); }
-
-  .snipai-guide-sub {
-    font-size: 13px;
-    color: #6b7280;
-    margin-bottom: 16px;
-  }
-
-  .snipai-steps {
-    padding-left: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-bottom: 16px;
-  }
-
-  .snipai-steps li {
-    font-size: 14px;
-    color: #e2e4ed;
-    line-height: 1.5;
-  }
-
-  .snipai-steps li strong { color: #a78bfa; }
-
-  .snipai-note {
-    font-size: 12px;
-    color: #6b7280;
-    margin-bottom: 20px;
-    line-height: 1.5;
-    padding: 10px 12px;
-    background: rgba(124,106,247,0.06);
-    border-radius: 8px;
-    border-left: 2px solid #7c6af7;
-  }
-
-  .snipai-confirm-btn {
-    width: 100%;
-    padding: 13px;
-    font-size: 14px;
-    font-weight: 600;
-    background: #7c6af7;
-    color: #fff;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    touch-action: manipulation;
-  }
-
-  .snipai-confirm-btn:active { opacity: 0.85; }
-`;
-document.head.appendChild(pwaStyles);
-
-// ── Create and show the floating install button ────────────
-function showInstallButton() {
-    // Don't show if already installed
-    if (window.matchMedia("(display-mode: standalone)").matches) return;
-    // Don't duplicate
-    if (document.getElementById("snipai-install-btn")) return;
-
-    const btn = document.createElement("button");
-    btn.id = "snipai-install-btn";
-    btn.innerHTML = "⬇ Install SnipAI";
-    document.body.appendChild(btn); // ← appended to body, not inside sidebar
-
-    btn.addEventListener("click", async () => {
-        if (deferredPrompt) {
-            // Native one-tap install
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            if (outcome === "accepted") {
-                btn.remove();
-                deferredPrompt = null;
-                showToast("SnipAI installed! ✅");
-            }
-        } else {
-            // Fallback: step-by-step guide
-            showInstallGuide();
-        }
-    });
-}
-
-// ── Step-by-step install guide modal ──────────────────────
-function showInstallGuide() {
-    document.getElementById("snipai-guide")?.remove();
-
-    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-    const isSamsung = /samsungbrowser/i.test(navigator.userAgent);
-
-    let steps = "";
-    if (isIOS) {
-        steps = `
-      <li>Tap the <strong>Share</strong> button (box with arrow) at the bottom of Safari</li>
-      <li>Scroll down and tap <strong>"Add to Home Screen"</strong></li>
-      <li>Tap <strong>Add</strong> in the top right corner</li>`;
-    } else if (isSamsung) {
-        steps = `
-      <li>Tap the <strong>⋮ menu</strong> in the top right</li>
-      <li>Tap <strong>"Add page to"</strong></li>
-      <li>Tap <strong>"Home screen"</strong></li>`;
-    } else {
-        steps = `
-      <li>Tap the <strong>⋮ menu</strong> in the top-right of Chrome</li>
-      <li>Tap <strong>"Add to Home screen"</strong></li>
-      <li>Tap <strong>Install</strong> or <strong>Add</strong> to confirm</li>`;
-    }
-
-    const guide = document.createElement("div");
-    guide.id = "snipai-guide";
-    guide.innerHTML = `
-    <div class="snipai-backdrop"></div>
-    <div class="snipai-guide-box">
-      <div class="snipai-guide-header">
-        <span>⚡ Install SnipAI</span>
-        <button class="snipai-close">✕</button>
-      </div>
-      <p class="snipai-guide-sub">Follow these steps to install on your device:</p>
-      <ol class="snipai-steps">${steps}</ol>
-      <p class="snipai-note">Once installed, SnipAI opens like a native app — full screen, no browser bar.</p>
-      <button class="snipai-confirm-btn">Got it!</button>
-    </div>
-  `;
-    document.body.appendChild(guide);
-
-    // Animate in
-    requestAnimationFrame(() => guide.classList.add("guide-visible"));
-
-    const close = () => {
-        guide.classList.remove("guide-visible");
-        setTimeout(() => guide.remove(), 250);
-    };
-
-    guide.querySelector(".snipai-close").addEventListener("click", close);
-    guide.querySelector(".snipai-confirm-btn").addEventListener("click", close);
-    guide.querySelector(".snipai-backdrop").addEventListener("click", close);
-}
-
-// ── Listen for browser install prompt ─────────────────────
-window.addEventListener("beforeinstallprompt", e => {
-    e.preventDefault();
-    deferredPrompt = e;
-    showInstallButton(); // show button immediately when prompt is available
-});
-
-// ── Hide button once installed ─────────────────────────────
-window.addEventListener("appinstalled", () => {
-    document.getElementById("snipai-install-btn")?.remove();
+let currentUser = null,
+    snippets = [],
+    activeId = null;
+let viewEditor = null,
+    formEditor = null,
+    editingId = null;
+let autosaveTimer = null,
+    isDirty = false,
+    aiRunning = false,
     deferredPrompt = null;
-    showToast("SnipAI installed! ✅");
+
+const $ = id => document.getElementById(id);
+const el = {
+    authScreen: $("authScreen"),
+    appShell: $("appShell"),
+    snippetList: $("snippetList"),
+    searchInput: $("searchInput"),
+    langFilter: $("langFilter"),
+    viewPanel: $("viewPanel"),
+    formPanel: $("formPanel"),
+    welcomeMsg: $("welcomeMsg"),
+    snippetDetail: $("snippetDetail"),
+    snippetTitleDisplay: $("snippetTitleDisplay"),
+    toolbarView: $("toolbarView"),
+    toolbarForm: $("toolbarForm"),
+    langBadge: $("langBadge"),
+    visibilityBadge: $("visibilityBadge"),
+    snippetDesc: $("snippetDesc"),
+    tagsWrap: $("tagsWrap"),
+    formTitle: $("formTitle"),
+    formLang: $("formLang"),
+    formTags: $("formTags"),
+    formDesc: $("formDesc"),
+    formPublic: $("formPublic"),
+    visibilityHint: $("visibilityHint"),
+    autosaveStatus: $("autosaveStatus"),
+    aiStatus: $("aiStatus"),
+    aiStatusText: $("aiStatusText"),
+    explainPanel: $("explainPanel"),
+    explainText: $("explainText"),
+    toast: $("toast"),
+    sidebar: $("sidebar"),
+    overlay: $("sidebarOverlay"),
+    userBar: $("userBar"),
+    settingsBackdrop: $("settingsBackdrop")
+};
+
+// Toast
+function showToast(msg, type = "success") {
+    el.toast.textContent = msg;
+    el.toast.className = `toast show ${type}`;
+    setTimeout(() => {
+        el.toast.className = "toast";
+    }, 2800);
+}
+
+// Auth display
+function showApp(user) {
+    currentUser = user;
+    el.authScreen.style.display = "none";
+    el.appShell.style.display = "flex";
+    const initials = user.name
+        ? user.name
+              .split(" ")
+              .map(w => w[0])
+              .join("")
+              .toUpperCase()
+              .slice(0, 2)
+        : user.email[0].toUpperCase();
+    el.userBar.innerHTML = `<div class="user-avatar">${initials}</div><span>${
+        user.name || user.email
+    }</span>`;
+    GroqKey.load();
+}
+
+function showAuth() {
+    el.authScreen.style.display = "flex";
+    el.appShell.style.display = "none";
+    currentUser = null;
+}
+
+// Auth tabs
+document.querySelectorAll(".auth-tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+        const t = tab.dataset.tab;
+        document
+            .querySelectorAll(".auth-tab")
+            .forEach(x => x.classList.remove("active"));
+        tab.classList.add("active");
+        $("loginForm").classList.toggle("hidden", t !== "login");
+        $("registerForm").classList.toggle("hidden", t !== "register");
+    });
 });
 
-// ── Sidebar ────────────────────────────────────────────────
+// Login
+$("loginBtn").addEventListener("click", async () => {
+    const email = $("loginEmail").value.trim();
+    const pass = $("loginPassword").value;
+    const err = $("loginError");
+    err.textContent = "";
+    if (!email || !pass) {
+        err.textContent = "Fill all fields";
+        return;
+    }
+    $("loginBtn").textContent = "Signing in...";
+    $("loginBtn").disabled = true;
+    try {
+        const user = await Auth.login(email, pass);
+        showApp(user);
+        await loadSnippets();
+    } catch (e) {
+        err.textContent = e.message?.includes("Invalid")
+            ? "Wrong email or password"
+            : "Login failed";
+    } finally {
+        $("loginBtn").textContent = "Sign In";
+        $("loginBtn").disabled = false;
+    }
+});
+
+// Register
+$("registerBtn").addEventListener("click", async () => {
+    const name = $("regName").value.trim();
+    const email = $("regEmail").value.trim();
+    const pass = $("regPassword").value;
+    const err = $("registerError");
+    err.textContent = "";
+    if (!name || !email || !pass) {
+        err.textContent = "Fill all fields";
+        return;
+    }
+    if (pass.length < 8) {
+        err.textContent = "Password min 8 characters";
+        return;
+    }
+    $("registerBtn").textContent = "Creating...";
+    $("registerBtn").disabled = true;
+    try {
+        const user = await Auth.register(name, email, pass);
+        showApp(user);
+        await loadSnippets();
+    } catch (e) {
+        err.textContent = e.message?.includes("already")
+            ? "Email already registered"
+            : "Registration failed";
+    } finally {
+        $("registerBtn").textContent = "Create Account";
+        $("registerBtn").disabled = false;
+    }
+});
+
+["loginEmail", "loginPassword"].forEach(id =>
+    $(id).addEventListener("keydown", e => {
+        if (e.key === "Enter") $("loginBtn").click();
+    })
+);
+["regName", "regEmail", "regPassword"].forEach(id =>
+    $(id).addEventListener("keydown", e => {
+        if (e.key === "Enter") $("registerBtn").click();
+    })
+);
+
+// Settings
+$("settingsBtn").addEventListener("click", () => {
+    if (!currentUser) return;
+    $("settingsUser").textContent = `${currentUser.name || "User"}  ${
+        currentUser.email
+    }`;
+    $("groqKeyInput").value = GroqKey.get();
+    updateGroqStatus();
+    el.settingsBackdrop.style.display = "flex";
+});
+
+$("closeSettings").addEventListener("click", () => {
+    el.settingsBackdrop.style.display = "none";
+});
+el.settingsBackdrop.addEventListener("click", e => {
+    if (e.target === el.settingsBackdrop)
+        el.settingsBackdrop.style.display = "none";
+});
+
+$("saveGroqKey").addEventListener("click", async () => {
+    const key = $("groqKeyInput").value.trim();
+    await GroqKey.save(key);
+    updateGroqStatus();
+    showToast(key ? "Groq key saved" : "Groq key cleared", "ai");
+});
+
+function updateGroqStatus() {
+    const statusEl = $("groqStatus");
+    const key = GroqKey.get();
+    if (key) {
+        statusEl.textContent = "AI features enabled";
+        statusEl.className = "groq-status ok";
+    } else {
+        statusEl.textContent = "No key - AI disabled";
+        statusEl.className = "groq-status err";
+    }
+}
+
+$("logoutBtn").addEventListener("click", async () => {
+    await Auth.logout();
+    el.settingsBackdrop.style.display = "none";
+    showAuth();
+    snippets = [];
+    activeId = null;
+});
+
+// Sidebar
 function openSidebar() {
-    sidebar.classList.remove("hidden");
-    overlay.classList.add("visible");
+    el.sidebar.classList.remove("hidden");
+    el.overlay.classList.add("visible");
 }
-
 function closeSidebar() {
-    sidebar.classList.add("hidden");
-    overlay.classList.remove("visible");
+    el.sidebar.classList.add("hidden");
+    el.overlay.classList.remove("visible");
 }
-
 function isMobile() {
     return window.innerWidth <= 600;
 }
 
-// ── Monaco ─────────────────────────────────────────────────
+$("sidebarToggle").addEventListener("click", () =>
+    el.sidebar.classList.contains("hidden") ? openSidebar() : closeSidebar()
+);
+el.overlay.addEventListener("click", closeSidebar);
+window.addEventListener("resize", () => {
+    if (!isMobile()) {
+        el.sidebar.classList.remove("hidden");
+        el.overlay.classList.remove("visible");
+    }
+});
+document.addEventListener("keydown", e => {
+    if (
+        e.key === "Escape" &&
+        isMobile() &&
+        !el.sidebar.classList.contains("hidden")
+    )
+        closeSidebar();
+});
+
+// Monaco
 require.config({
     paths: {
         vs: "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs"
     }
 });
-
 function initMonaco(cb) {
     require(["vs/editor/editor.main"], cb);
 }
@@ -333,44 +269,42 @@ function createEditor(
         scrollBeyondLastLine: false,
         automaticLayout: true,
         padding: { top: 12, bottom: 12 },
-        fontFamily: "'Fira Code', 'Cascadia Code', monospace",
+        fontFamily: "'Fira Code','Cascadia Code',monospace",
         wordWrap: "on"
     });
 }
 
-// ── Toast ──────────────────────────────────────────────────
-function showToast(msg, type = "success") {
-    toast.textContent = msg;
-    toast.className = `toast show ${type}`;
-    setTimeout(() => {
-        toast.className = "toast";
-    }, 2800);
-}
-
-// ── Autosave Status ────────────────────────────────────────
 function setAutosaveStatus(state) {
-    const labels = { saving: "● Saving…", saved: "✓ Saved", error: "✕ Error" };
-    autosaveStatus.textContent = labels[state] ?? "";
-    autosaveStatus.className = `autosave-status ${state}`;
+    const labels = { saving: "Saving...", saved: "Saved", error: "Error" };
+    el.autosaveStatus.textContent = labels[state] ?? "";
+    el.autosaveStatus.className = `autosave-status ${state}`;
 }
 
-// ── AI Status Bar ──────────────────────────────────────────
 function setAiStatus(visible, text = "") {
-    aiStatus.style.display = visible ? "flex" : "none";
-    aiStatusText.textContent = text;
+    el.aiStatus.style.display = visible ? "flex" : "none";
+    el.aiStatusText.textContent = text;
 }
 
-// ── Form Payload ───────────────────────────────────────────
+// Visibility toggle
+el.formPublic.addEventListener("change", () => {
+    el.visibilityHint.textContent = el.formPublic.checked
+        ? "Anyone with the link can view this"
+        : "Only you can see this snippet";
+    if (editingId) scheduleAutosave();
+});
+
+// Form payload
 function getFormPayload() {
     return {
-        title: formTitle.value.trim(),
+        title: el.formTitle.value.trim(),
         code: formEditor?.getValue() ?? "",
-        language: formLang.value,
-        tags: formTags.value
+        language: el.formLang.value,
+        tags: el.formTags.value
             .split(",")
             .map(t => t.trim())
             .filter(Boolean),
-        description: formDesc.value.trim()
+        description: el.formDesc.value.trim(),
+        isPublic: el.formPublic.checked
     };
 }
 
@@ -380,232 +314,204 @@ function validatePayload(p) {
     return null;
 }
 
-// ── Save ───────────────────────────────────────────────────
+// Save
 async function saveSnippet(silent = false) {
     const payload = getFormPayload();
     const error = validatePayload(payload);
-
     if (error) {
         if (!silent) showToast(error, "error");
         return false;
     }
 
     setAutosaveStatus("saving");
-
     try {
-        const res = editingId
-            ? await updateSnippet(editingId, payload)
-            : await createSnippet(payload);
-
-        if (!res.success) {
-            setAutosaveStatus("error");
-            if (!silent)
-                showToast(res.error ?? "Something went wrong", "error");
-            return false;
+        let result;
+        if (editingId) {
+            result = await Snippets.update(editingId, currentUser.$id, payload);
+        } else {
+            result = await Snippets.create(currentUser.$id, payload);
+            editingId = result.id;
         }
-
-        if (!editingId) editingId = res.data.id;
-
         isDirty = false;
         setAutosaveStatus("saved");
-        if (!silent) showToast("Snippet saved ✓");
-
+        if (!silent) showToast("Snippet saved");
         await loadSnippets();
-        return res.data;
-    } catch {
+        return result;
+    } catch (e) {
         setAutosaveStatus("error");
-        if (!silent) showToast("Network error", "error");
+        if (!silent) showToast("Save failed", "error");
         return false;
     }
 }
 
-// ── Autosave ───────────────────────────────────────────────
+// Autosave
 function scheduleAutosave() {
     isDirty = true;
     setAutosaveStatus("saving");
     clearTimeout(autosaveTimer);
-    autosaveTimer = setTimeout(() => saveSnippet(true), AUTOSAVE_DELAY);
+    autosaveTimer = setTimeout(() => saveSnippet(true), 2000);
 }
 
 function attachAutosaveListeners() {
-    formTitle.addEventListener("input", scheduleAutosave);
-    formTags.addEventListener("input", scheduleAutosave);
-    formDesc.addEventListener("input", scheduleAutosave);
+    el.formTitle.addEventListener("input", scheduleAutosave);
+    el.formTags.addEventListener("input", scheduleAutosave);
+    el.formDesc.addEventListener("input", scheduleAutosave);
 }
 
-// ── AI: Analyze ────────────────────────────────────────────
+// AI: Analyze
 async function analyzeCode() {
     if (aiRunning) return;
     const code = formEditor?.getValue()?.trim();
     if (!code) {
-        showToast("Paste some code first", "error");
+        showToast("Paste code first", "error");
+        return;
+    }
+
+    if (!GroqKey.get()) {
+        showToast("Add Groq key in Settings first", "error");
+        $("settingsBtn").click();
         return;
     }
 
     aiRunning = true;
-    const analyzeBtn = document.getElementById("analyzeBtn");
-    analyzeBtn.disabled = true;
-    setAiStatus(true, "AI is analyzing your code…");
+    $("analyzeBtn").disabled = true;
+    setAiStatus(true, "AI is analyzing your code...");
     clearTimeout(autosaveTimer);
 
     try {
-        const res = await fetch(`${API}/ai/analyze`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ code })
-        });
-        const json = await res.json();
-        if (!json.success) {
-            showToast(json.error ?? "AI failed", "error");
-            return;
-        }
-
-        const { language, title, description, tags } = json.data;
-        formTitle.value = title;
-        formDesc.value = description;
-        formTags.value = tags.join(", ");
-        if (language) {
-            formLang.value = language;
+        const data = await AI.analyze(code);
+        el.formTitle.value = data.title;
+        el.formDesc.value = data.description;
+        el.formTags.value = data.tags.join(", ");
+        if (data.language) {
+            el.formLang.value = data.language;
             if (formEditor)
-                monaco.editor.setModelLanguage(formEditor.getModel(), language);
+                monaco.editor.setModelLanguage(
+                    formEditor.getModel(),
+                    data.language
+                );
         }
-        showToast("✦ AI filled the form", "ai");
-    } catch {
-        showToast("Could not reach AI", "error");
+        showToast("AI filled the form", "ai");
+    } catch (e) {
+        if (e.message === "NO_KEY") {
+            showToast("Add Groq key in Settings", "error");
+            $("settingsBtn").click();
+        } else if (e.message === "INVALID_KEY")
+            showToast("Invalid Groq key — check Settings", "error");
+        else showToast("AI request failed", "error");
     } finally {
         aiRunning = false;
-        analyzeBtn.disabled = false;
+        $("analyzeBtn").disabled = false;
         setAiStatus(false);
         scheduleAutosave();
     }
 }
 
-// ── AI: Explain ────────────────────────────────────────────
+// AI: Explain
 async function explainSnippet() {
     if (aiRunning) return;
     const s = snippets.find(x => x.id === activeId);
     if (!s) return;
 
-    aiRunning = true;
-    const explainBtn = document.getElementById("explainBtn");
-    explainBtn.disabled = true;
-    explainBtn.textContent = "✦ Thinking…";
-    explainPanel.style.display = "none";
-
-    try {
-        const res = await fetch(`${API}/ai/explain`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ code: s.code, language: s.language })
-        });
-        const json = await res.json();
-        if (!json.success) {
-            showToast(json.error ?? "AI failed", "error");
-            return;
-        }
-        explainText.textContent = json.data.explanation;
-        explainPanel.style.display = "block";
-    } catch {
-        showToast("Could not reach AI", "error");
-    } finally {
-        aiRunning = false;
-        explainBtn.disabled = false;
-        explainBtn.textContent = "✦ Explain";
-    }
-}
-
-// ── API ────────────────────────────────────────────────────
-async function fetchSnippets(search = "", lang = "") {
-    const params = new URLSearchParams();
-    if (search) params.set("search", search);
-    if (lang) params.set("lang", lang);
-    const res = await fetch(`${API}/snippets?${params}`);
-    const json = await res.json();
-    return json.data ?? [];
-}
-
-async function createSnippet(payload) {
-    const res = await fetch(`${API}/snippets`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-    });
-    return res.json();
-}
-
-async function updateSnippet(id, payload) {
-    const res = await fetch(`${API}/snippets/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-    });
-    return res.json();
-}
-
-async function deleteSnippet(id) {
-    const res = await fetch(`${API}/snippets/${id}`, { method: "DELETE" });
-    return res.json();
-}
-
-// ── Render List ────────────────────────────────────────────
-function renderList(data) {
-    if (!data.length) {
-        snippetList.innerHTML =
-            '<li class="empty-state">No snippets found.</li>';
+    if (!GroqKey.get()) {
+        showToast("Add Groq key in Settings first", "error");
+        $("settingsBtn").click();
         return;
     }
-    snippetList.innerHTML = data
+
+    aiRunning = true;
+    const btn = $("explainBtn");
+    btn.disabled = true;
+    btn.textContent = "Thinking...";
+    el.explainPanel.style.display = "none";
+
+    try {
+        const explanation = await AI.explain(s.code, s.language);
+        el.explainText.textContent = explanation;
+        el.explainPanel.style.display = "block";
+    } catch (e) {
+        if (e.message === "INVALID_KEY") showToast("Invalid Groq key", "error");
+        else showToast("AI request failed", "error");
+    } finally {
+        aiRunning = false;
+        btn.disabled = false;
+        btn.textContent = "Explain";
+    }
+}
+
+// API load
+async function loadSnippets() {
+    if (!currentUser) return;
+    try {
+        const search = el.searchInput.value.trim();
+        const language = el.langFilter.value;
+        snippets = await Snippets.list(currentUser.$id, { search, language });
+        renderList(snippets);
+    } catch (e) {
+        showToast("Failed to load snippets", "error");
+    }
+}
+
+// Render
+function renderList(data) {
+    if (!data.length) {
+        el.snippetList.innerHTML =
+            '<li class="empty-state">No snippets yet.</li>';
+        return;
+    }
+    el.snippetList.innerHTML = data
         .map(
             s => `
     <li class="snippet-item ${s.id === activeId ? "active" : ""}" data-id="${
         s.id
     }">
       <div class="item-title">${escHtml(s.title)}</div>
-      <div class="item-meta">${s.language} · ${s.tags
-          .slice(0, 2)
-          .join(", ")}</div>
+      <div class="item-meta">
+        ${s.language}
+        ${s.isPublic ? '<span class="item-public-badge">PUBLIC</span>' : ""}
+      </div>
     </li>
   `
         )
         .join("");
-
-    snippetList.querySelectorAll(".snippet-item").forEach(el => {
-        el.addEventListener("click", () => openSnippet(Number(el.dataset.id)));
+    el.snippetList.querySelectorAll(".snippet-item").forEach(item => {
+        item.addEventListener("click", () => openSnippet(item.dataset.id));
     });
 }
 
-// ── Toolbar / Panel ────────────────────────────────────────
 function showToolbar(mode) {
-    toolbarView.style.display = mode === "view" ? "flex" : "none";
-    toolbarForm.style.display = mode === "form" ? "flex" : "none";
+    el.toolbarView.style.display = mode === "view" ? "flex" : "none";
+    el.toolbarForm.style.display = mode === "form" ? "flex" : "none";
 }
 
 function showPanel(mode) {
-    viewPanel.style.display = mode === "view" ? "flex" : "none";
-    formPanel.style.display = mode === "form" ? "flex" : "none";
+    el.viewPanel.style.display = mode === "view" ? "flex" : "none";
+    el.formPanel.style.display = mode === "form" ? "flex" : "none";
 }
 
-// ── Open Snippet ───────────────────────────────────────────
 function openSnippet(id) {
     const s = snippets.find(x => x.id === id);
     if (!s) return;
-
     clearTimeout(autosaveTimer);
     activeId = id;
     showPanel("view");
     showToolbar("view");
     renderList(snippets);
 
-    snippetTitleDisplay.textContent = s.title;
-    snippetTitleDisplay.classList.add("active");
-    langBadge.textContent = s.language;
+    el.snippetTitleDisplay.textContent = s.title;
+    el.snippetTitleDisplay.classList.add("active");
+    el.langBadge.textContent = s.language;
+    el.visibilityBadge.textContent = s.isPublic ? "Public" : "Private";
+    el.visibilityBadge.className = `visibility-badge ${
+        s.isPublic ? "public" : "private"
+    }`;
 
-    welcomeMsg.style.display = "none";
-    snippetDetail.style.display = "flex";
-    snippetDesc.textContent = s.description || "";
-    explainPanel.style.display = "none";
+    el.welcomeMsg.style.display = "none";
+    el.snippetDetail.style.display = "flex";
+    el.snippetDesc.textContent = s.description || "";
+    el.explainPanel.style.display = "none";
 
-    tagsWrap.innerHTML = s.tags
+    el.tagsWrap.innerHTML = s.tags
         .map(t => `<span class="tag">${escHtml(t)}</span>`)
         .join("");
 
@@ -619,28 +525,31 @@ function openSnippet(id) {
     if (isMobile()) closeSidebar();
 }
 
-// ── Open Form ─────────────────────────────────────────────
 function openForm(snippet = null) {
     clearTimeout(autosaveTimer);
     isDirty = false;
     editingId = snippet ? snippet.id : null;
-
     showPanel("form");
     showToolbar("form");
     setAutosaveStatus("");
     setAiStatus(false);
 
-    snippetTitleDisplay.textContent = snippet ? "Edit Snippet" : "New Snippet";
-    snippetTitleDisplay.classList.remove("active");
+    el.snippetTitleDisplay.textContent = snippet
+        ? "Edit Snippet"
+        : "New Snippet";
+    el.snippetTitleDisplay.classList.remove("active");
 
-    formTitle.value = snippet?.title ?? "";
-    formLang.value = snippet?.language ?? "javascript";
-    formTags.value = snippet?.tags?.join(", ") ?? "";
-    formDesc.value = snippet?.description ?? "";
+    el.formTitle.value = snippet?.title ?? "";
+    el.formLang.value = snippet?.language ?? "javascript";
+    el.formTags.value = snippet?.tags?.join(", ") ?? "";
+    el.formDesc.value = snippet?.description ?? "";
+    el.formPublic.checked = snippet?.isPublic ?? false;
+    el.visibilityHint.textContent = el.formPublic.checked
+        ? "Anyone with the link can view this"
+        : "Only you can see this snippet";
 
     const code = snippet?.code ?? "";
     const lang = snippet?.language ?? "javascript";
-
     if (formEditor) {
         formEditor.setValue(code);
         monaco.editor.setModelLanguage(formEditor.getModel(), lang);
@@ -649,49 +558,37 @@ function openForm(snippet = null) {
         formEditor.onDidChangeModelContent(() => scheduleAutosave());
     }
 
-    formLang.onchange = () => {
+    el.formLang.onchange = () => {
         if (formEditor) {
             monaco.editor.setModelLanguage(
                 formEditor.getModel(),
-                formLang.value
+                el.formLang.value
             );
             scheduleAutosave();
         }
     };
 
     if (isMobile()) closeSidebar();
-    formTitle.focus();
+    el.formTitle.focus();
 }
 
-// ── Load Snippets ──────────────────────────────────────────
-async function loadSnippets() {
-    const search = searchInput.value.trim();
-    const lang = langFilter.value;
-    snippets = await fetchSnippets(search, lang);
-    renderList(snippets);
-}
+// Events
+$("newSnippetBtn").addEventListener("click", () => openForm());
+$("welcomeNewBtn").addEventListener("click", () => openForm());
+$("analyzeBtn").addEventListener("click", analyzeCode);
+$("explainBtn").addEventListener("click", explainSnippet);
 
-// ── Events ─────────────────────────────────────────────────
-document
-    .getElementById("newSnippetBtn")
-    .addEventListener("click", () => openForm());
-document
-    .getElementById("welcomeNewBtn")
-    .addEventListener("click", () => openForm());
-document.getElementById("analyzeBtn").addEventListener("click", analyzeCode);
-document.getElementById("explainBtn").addEventListener("click", explainSnippet);
-
-document.getElementById("closeExplainBtn").addEventListener("click", () => {
-    explainPanel.style.display = "none";
+$("closeExplainBtn").addEventListener("click", () => {
+    el.explainPanel.style.display = "none";
 });
 
-document.getElementById("saveBtn").addEventListener("click", async () => {
+$("saveBtn").addEventListener("click", async () => {
     clearTimeout(autosaveTimer);
     const result = await saveSnippet(false);
     if (result) openSnippet(result.id ?? editingId);
 });
 
-document.getElementById("cancelBtn").addEventListener("click", () => {
+$("cancelBtn").addEventListener("click", () => {
     clearTimeout(autosaveTimer);
     isDirty = false;
     showPanel("view");
@@ -699,63 +596,42 @@ document.getElementById("cancelBtn").addEventListener("click", () => {
         openSnippet(activeId);
     } else {
         showToolbar("none");
-        snippetTitleDisplay.textContent = "Select a snippet";
-        snippetTitleDisplay.classList.remove("active");
+        el.snippetTitleDisplay.textContent = "Select a snippet";
+        el.snippetTitleDisplay.classList.remove("active");
     }
 });
 
-document.getElementById("editBtn").addEventListener("click", () => {
+$("editBtn").addEventListener("click", () => {
     const s = snippets.find(x => x.id === activeId);
     if (s) openForm(s);
 });
 
-document.getElementById("copyBtn").addEventListener("click", () => {
+$("copyBtn").addEventListener("click", () => {
     const s = snippets.find(x => x.id === activeId);
     if (!s) return;
     navigator.clipboard
         .writeText(s.code)
-        .then(() => showToast("Copied to clipboard ✓"))
+        .then(() => showToast("Copied to clipboard"))
         .catch(() => showToast("Copy failed", "error"));
 });
 
-document.getElementById("deleteBtn").addEventListener("click", async () => {
+$("deleteBtn").addEventListener("click", async () => {
     if (!activeId) return;
     const s = snippets.find(x => x.id === activeId);
     if (!confirm(`Delete "${s?.title}"?`)) return;
-    const res = await deleteSnippet(activeId);
-    if (res.success) {
+    try {
+        await Snippets.delete(activeId);
         activeId = null;
         showToast("Snippet deleted");
-        welcomeMsg.style.display = "flex";
-        snippetDetail.style.display = "none";
-        snippetTitleDisplay.textContent = "Select a snippet";
-        snippetTitleDisplay.classList.remove("active");
+        el.welcomeMsg.style.display = "flex";
+        el.snippetDetail.style.display = "none";
+        el.snippetTitleDisplay.textContent = "Select a snippet";
+        el.snippetTitleDisplay.classList.remove("active");
         showPanel("view");
         showToolbar("none");
         await loadSnippets();
-    }
-});
-
-document.getElementById("sidebarToggle").addEventListener("click", () => {
-    sidebar.classList.contains("hidden") ? openSidebar() : closeSidebar();
-});
-
-overlay.addEventListener("click", () => closeSidebar());
-
-document.addEventListener("keydown", e => {
-    if (
-        e.key === "Escape" &&
-        isMobile() &&
-        !sidebar.classList.contains("hidden")
-    ) {
-        closeSidebar();
-    }
-});
-
-window.addEventListener("resize", () => {
-    if (!isMobile()) {
-        sidebar.classList.remove("hidden");
-        overlay.classList.remove("visible");
+    } catch {
+        showToast("Delete failed", "error");
     }
 });
 
@@ -767,13 +643,54 @@ window.addEventListener("beforeunload", e => {
 });
 
 let searchTimer;
-searchInput.addEventListener("input", () => {
+el.searchInput.addEventListener("input", () => {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(loadSnippets, 300);
 });
-langFilter.addEventListener("change", loadSnippets);
+el.langFilter.addEventListener("change", loadSnippets);
 
-// ── Utility ────────────────────────────────────────────────
+// PWA install
+const pwaStyle = document.createElement("style");
+pwaStyle.textContent = `
+  #snipai-install-btn {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: linear-gradient(135deg,#7c6af7,#a78bfa); color:#fff; border:none;
+    padding:12px 28px; border-radius:50px; font-size:14px; font-weight:600;
+    cursor:pointer; box-shadow:0 4px 20px rgba(124,106,247,.4);
+    z-index:998; animation:pwa-up .3s ease-out; touch-action:manipulation; white-space:nowrap;
+  }
+  @keyframes pwa-up { from{opacity:0;transform:translateX(-50%) translateY(16px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+`;
+document.head.appendChild(pwaStyle);
+
+window.addEventListener("beforeinstallprompt", e => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (window.matchMedia("(display-mode: standalone)").matches) return;
+    if ($("snipai-install-btn")) return;
+    const btn = document.createElement("button");
+    btn.id = "snipai-install-btn";
+    btn.textContent = "Install SnipAI";
+    document.body.appendChild(btn);
+    btn.addEventListener("click", async () => {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === "accepted") {
+                btn.remove();
+                deferredPrompt = null;
+                showToast("SnipAI installed!");
+            }
+        }
+    });
+});
+
+window.addEventListener("appinstalled", () => {
+    $("snipai-install-btn")?.remove();
+    deferredPrompt = null;
+});
+
+// Utility
 function escHtml(str) {
     return str
         .replace(/&/g, "&amp;")
@@ -781,10 +698,25 @@ function escHtml(str) {
         .replace(/>/g, "&gt;");
 }
 
-// ── Init ───────────────────────────────────────────────────
+// Init
 initMonaco(async () => {
     attachAutosaveListeners();
-    await loadSnippets();
+    // Try cached user first for instant load
+    const cached = Auth.getCachedUser();
+    if (cached) {
+        showApp(cached);
+        loadSnippets(); // load in background
+    }
+    // Verify session with Appwrite (in background)
+    const user = await Auth.getUser();
+    if (user) {
+        if (!cached) {
+            showApp(user);
+            await loadSnippets();
+        }
+    } else {
+        showAuth();
+    }
     if (isMobile()) closeSidebar();
-    console.log("SnipAI ready ✅");
+    console.log("SnipAI ready");
 });

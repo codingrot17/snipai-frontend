@@ -12,7 +12,6 @@
     --surface: #1a1d27;
     --border: #2a2d3a;
     --accent: #7c6af7;
-    --accent-dim: #4f3fd4;
     --text: #e2e4ed;
     --muted: #6b7280;
     --danger: #ef4444;
@@ -31,8 +30,117 @@ body {
     font-size: 14px;
 }
 
-body {
+/* ── Auth Screen ───────────────────────────────────────── */
+.auth-screen {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
     display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 20px;
+}
+
+.auth-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px 28px;
+    width: 100%;
+    max-width: 380px;
+    animation: fadeIn 0.3s ease;
+}
+
+.auth-logo {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--accent);
+    text-align: center;
+    margin-bottom: 6px;
+    letter-spacing: -0.5px;
+}
+
+.auth-tagline {
+    font-size: 13px;
+    color: var(--muted);
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.auth-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--bg);
+    border-radius: var(--radius);
+    padding: 4px;
+    margin-bottom: 20px;
+}
+
+.auth-tab {
+    flex: 1;
+    padding: 8px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    touch-action: manipulation;
+}
+
+.auth-tab.active {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.auth-form.hidden {
+    display: none;
+}
+
+.auth-input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    padding: 11px 14px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.auth-input:focus {
+    border-color: var(--accent);
+}
+
+.auth-submit {
+    width: 100%;
+    padding: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    margin-top: 4px;
+}
+
+.auth-error {
+    font-size: 12px;
+    color: var(--danger);
+    text-align: center;
+    min-height: 16px;
+}
+
+/* ── App Shell ─────────────────────────────────────────── */
+.app-shell {
+    display: flex;
+    height: 100vh;
     overflow: hidden;
 }
 
@@ -53,14 +161,44 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px;
+    padding: 14px 16px;
     border-bottom: 1px solid var(--border);
 }
 
 .logo {
-    font-weight: 700;
+    font-weight: 800;
     font-size: 16px;
-    letter-spacing: 0.5px;
+    letter-spacing: -0.3px;
+}
+
+.sidebar-header-actions {
+    display: flex;
+    gap: 4px;
+}
+
+/* ── User Bar ──────────────────────────────────────────── */
+.user-bar {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.user-bar .user-avatar {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    flex-shrink: 0;
 }
 
 .search-wrap,
@@ -107,7 +245,6 @@ body {
 .snippet-list li.snippet-item:hover {
     background: rgba(124, 106, 247, 0.08);
 }
-
 .snippet-list li.snippet-item.active {
     background: rgba(124, 106, 247, 0.12);
     border-left-color: var(--accent);
@@ -120,11 +257,23 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
 }
-
 .item-meta {
     font-size: 11px;
     color: var(--muted);
     margin-top: 3px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.item-public-badge {
+    font-size: 9px;
+    background: rgba(34, 197, 94, 0.12);
+    color: var(--success);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
 }
 
 .empty-state {
@@ -132,21 +281,6 @@ body {
     color: var(--muted);
     text-align: center;
     font-size: 13px;
-}
-
-/* ── Install Button ────────────────────────────────────── */
-.install-wrap {
-    padding: 12px;
-    border-top: 1px solid var(--border);
-    flex-shrink: 0;
-}
-
-.install-btn {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
 }
 
 /* ── Main ──────────────────────────────────────────────── */
@@ -183,7 +317,6 @@ body {
     min-width: 0;
     flex: 1;
 }
-
 .toolbar-right {
     display: flex;
     align-items: center;
@@ -199,7 +332,6 @@ body {
     text-overflow: ellipsis;
     color: var(--muted);
 }
-
 .snippet-title-display.active {
     color: var(--text);
 }
@@ -214,7 +346,22 @@ body {
     text-transform: uppercase;
 }
 
-/* ── Autosave Status ───────────────────────────────────── */
+.visibility-badge {
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 4px;
+    padding: 2px 8px;
+}
+.visibility-badge.public {
+    background: rgba(34, 197, 94, 0.1);
+    color: var(--success);
+}
+.visibility-badge.private {
+    background: rgba(107, 114, 128, 0.1);
+    color: var(--muted);
+}
+
+/* ── Autosave ──────────────────────────────────────────── */
 .autosave-status {
     font-size: 11px;
     color: var(--muted);
@@ -223,7 +370,6 @@ body {
     text-align: right;
     transition: color 0.2s;
 }
-
 .autosave-status.saving {
     color: var(--muted);
 }
@@ -253,7 +399,6 @@ body {
     text-align: center;
     padding: 24px;
 }
-
 .welcome strong {
     color: var(--text);
 }
@@ -266,7 +411,6 @@ body {
     gap: 12px;
     overflow: hidden;
 }
-
 .snippet-desc {
     color: var(--muted);
     font-size: 13px;
@@ -279,7 +423,6 @@ body {
     gap: 6px;
     min-height: 22px;
 }
-
 .tag {
     background: rgba(124, 106, 247, 0.1);
     color: var(--accent);
@@ -306,7 +449,6 @@ body {
     gap: 12px;
     overflow: hidden;
 }
-
 .form-row {
     display: flex;
     gap: 10px;
@@ -327,10 +469,66 @@ body {
     outline: none;
     transition: border-color 0.2s;
 }
-
 .form-row input:focus,
 .form-row select:focus {
     border-color: var(--accent);
+}
+
+/* ── Visibility Toggle ─────────────────────────────────── */
+.visibility-row {
+    align-items: center;
+}
+
+.toggle-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.toggle-wrap input[type="checkbox"] {
+    display: none;
+}
+
+.toggle-slider {
+    width: 36px;
+    height: 20px;
+    background: var(--border);
+    border-radius: 20px;
+    position: relative;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+
+.toggle-slider::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 14px;
+    height: 14px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.2s;
+}
+
+.toggle-wrap input:checked + .toggle-slider {
+    background: var(--success);
+}
+.toggle-wrap input:checked + .toggle-slider::after {
+    transform: translateX(16px);
+}
+
+.toggle-label {
+    font-size: 13px;
+    color: var(--text);
+}
+
+.visibility-hint {
+    font-size: 12px;
+    color: var(--muted);
+    margin-left: auto;
 }
 
 /* ── AI Status Bar ─────────────────────────────────────── */
@@ -344,6 +542,7 @@ body {
     padding: 10px 14px;
     font-size: 13px;
     color: var(--ai);
+    flex-shrink: 0;
 }
 
 .ai-spinner {
@@ -362,7 +561,7 @@ body {
     }
 }
 
-/* ── AI Explanation Panel ──────────────────────────────── */
+/* ── Explain Panel ─────────────────────────────────────── */
 .explain-panel {
     background: rgba(167, 139, 250, 0.06);
     border: 1px solid rgba(167, 139, 250, 0.2);
@@ -370,17 +569,6 @@ body {
     padding: 14px 16px;
     flex-shrink: 0;
     animation: fadeIn 0.2s ease;
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(6px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
 }
 
 .explain-header {
@@ -391,9 +579,7 @@ body {
     font-weight: 600;
     color: var(--ai);
     margin-bottom: 8px;
-    letter-spacing: 0.3px;
 }
-
 .explain-text {
     font-size: 13px;
     color: var(--text);
@@ -417,7 +603,6 @@ body {
     -webkit-tap-highlight-color: rgba(124, 106, 247, 0.2);
     touch-action: manipulation;
 }
-
 .btn:hover {
     opacity: 0.85;
 }
@@ -429,13 +614,11 @@ body {
     background: var(--accent);
     color: #fff;
 }
-
 .btn-ghost {
     background: transparent;
     border: 1px solid var(--border);
     color: var(--text);
 }
-
 .btn-danger {
     background: transparent;
     border: 1px solid var(--danger);
@@ -447,18 +630,12 @@ body {
     border: 1px solid rgba(167, 139, 250, 0.3);
     color: var(--ai);
     font-weight: 600;
-    letter-spacing: 0.2px;
-    transition:
-        background 0.2s,
-        border-color 0.2s;
 }
-
 .btn-ai:hover {
     background: rgba(167, 139, 250, 0.18);
     border-color: var(--ai);
     opacity: 1;
 }
-
 .btn-ai:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -469,7 +646,7 @@ body {
     border: none;
     color: var(--text);
     cursor: pointer;
-    font-size: 20px;
+    font-size: 18px;
     line-height: 1;
     padding: 6px 8px;
     border-radius: var(--radius);
@@ -477,7 +654,6 @@ body {
     flex-shrink: 0;
     position: relative;
     z-index: 10;
-    -webkit-tap-highlight-color: rgba(124, 106, 247, 0.2);
     touch-action: manipulation;
     min-width: 36px;
     min-height: 36px;
@@ -485,7 +661,6 @@ body {
     align-items: center;
     justify-content: center;
 }
-
 .btn-icon:hover {
     background: rgba(255, 255, 255, 0.06);
 }
@@ -506,10 +681,9 @@ body {
     transform: translateY(80px);
     opacity: 0;
     transition: all 0.25s ease;
-    z-index: 999;
+    z-index: 9999;
     pointer-events: none;
 }
-
 .toast.show {
     transform: translateY(0);
     opacity: 1;
@@ -527,16 +701,106 @@ body {
     color: var(--ai);
 }
 
-/* ── Scrollbar ─────────────────────────────────────────── */
-::-webkit-scrollbar {
-    width: 4px;
+/* ── Settings Modal ────────────────────────────────────── */
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    z-index: 9000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
 }
-::-webkit-scrollbar-track {
-    background: transparent;
+
+.modal-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    width: 100%;
+    max-width: 420px;
+    animation: fadeIn 0.2s ease;
 }
-::-webkit-scrollbar-thumb {
-    background: var(--border);
-    border-radius: 4px;
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 700;
+    font-size: 16px;
+    margin-bottom: 20px;
+    color: var(--text);
+}
+
+.settings-section {
+    margin-bottom: 24px;
+}
+
+.settings-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+}
+
+.settings-hint {
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 11px;
+}
+
+.settings-user {
+    font-size: 13px;
+    color: var(--text);
+    margin-bottom: 10px;
+}
+
+.settings-logout {
+    width: 100%;
+    justify-content: center;
+}
+
+.groq-key-wrap {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+.groq-key-wrap .auth-input {
+    flex: 1;
+}
+
+.settings-note {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+}
+.settings-note a {
+    color: var(--accent);
+    text-decoration: none;
+}
+.settings-note a:hover {
+    text-decoration: underline;
+}
+
+.groq-status {
+    font-size: 12px;
+    margin-top: 6px;
+    min-height: 16px;
+}
+.groq-status.ok {
+    color: var(--success);
+}
+.groq-status.err {
+    color: var(--danger);
 }
 
 /* ── Sidebar Overlay ───────────────────────────────────── */
@@ -551,10 +815,33 @@ body {
     backdrop-filter: blur(2px);
     -webkit-backdrop-filter: blur(2px);
 }
-
 .sidebar-overlay.visible {
     opacity: 1;
     pointer-events: all;
+}
+
+/* ── Scrollbar ─────────────────────────────────────────── */
+::-webkit-scrollbar {
+    width: 4px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+}
+
+/* ── Animations ────────────────────────────────────────── */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* ── Mobile ────────────────────────────────────────────── */
@@ -564,21 +851,17 @@ body {
         top: 0;
         left: 0;
         height: 100vh;
-        width: var(--sidebar-w);
         box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
         transform: translateX(0);
         pointer-events: all;
     }
-
     .sidebar.hidden {
         transform: translateX(-100%);
         pointer-events: none;
     }
-
     .main {
         width: 100%;
     }
-
     .snippet-title-display {
         font-size: 13px;
     }
@@ -593,96 +876,7 @@ body {
     #deleteBtn {
         display: none;
     }
-}
-
-/* ── Install Guide Modal ───────────────────────────────── */
-#installGuide {
-    position: fixed;
-    inset: 0;
-    z-index: 1000;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity 0.25s ease;
-}
-
-#installGuide.guide-visible {
-    opacity: 1;
-}
-
-.guide-backdrop {
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(3px);
-    -webkit-backdrop-filter: blur(3px);
-}
-
-.guide-box {
-    position: relative;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px 16px 0 0;
-    padding: 24px 20px 32px;
-    width: 100%;
-    max-width: 480px;
-    transform: translateY(40px);
-    transition: transform 0.25s ease;
-    z-index: 1;
-}
-
-#installGuide.guide-visible .guide-box {
-    transform: translateY(0);
-}
-
-.guide-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-weight: 700;
-    font-size: 16px;
-    color: var(--accent);
-    margin-bottom: 10px;
-}
-
-.guide-subtitle {
-    font-size: 13px;
-    color: var(--muted);
-    margin-bottom: 16px;
-}
-
-.guide-steps {
-    padding-left: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-bottom: 16px;
-}
-
-.guide-steps li {
-    font-size: 14px;
-    color: var(--text);
-    line-height: 1.5;
-}
-
-.guide-steps li strong {
-    color: var(--accent);
-}
-
-.guide-note {
-    font-size: 12px;
-    color: var(--muted);
-    margin-bottom: 20px;
-    line-height: 1.5;
-    padding: 10px 12px;
-    background: rgba(124, 106, 247, 0.06);
-    border-radius: var(--radius);
-    border-left: 2px solid var(--accent);
-}
-
-.guide-close-btn {
-    width: 100%;
-    padding: 12px;
-    font-size: 14px;
+    .visibility-hint {
+        display: none;
+    }
 }
