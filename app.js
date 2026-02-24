@@ -11,7 +11,7 @@ let editingId = null;
 let autosaveTimer = null;
 let isDirty = false;
 let aiRunning = false;
-let installPrompt = null; // holds the deferred PWA install event
+let installPrompt = null; // deferred beforeinstallprompt event
 
 // ── DOM Refs ───────────────────────────────────────────────
 const snippetList = document.getElementById("snippetList");
@@ -39,6 +39,117 @@ const explainText = document.getElementById("explainText");
 const toast = document.getElementById("toast");
 const sidebar = document.getElementById("sidebar");
 const overlay = document.getElementById("sidebarOverlay");
+const installWrap = document.getElementById("installBtn");
+
+// ── PWA Install Logic ──────────────────────────────────────
+
+function isInstalled() {
+    return (
+        window.matchMedia("(display-mode: standalone)").matches ||
+        window.navigator.standalone === true
+    ); // iOS Safari
+}
+
+function showInstallButton() {
+    if (isInstalled()) return; // already installed, don't show
+    if (installWrap) installWrap.style.display = "block";
+}
+
+function hideInstallButton() {
+    if (installWrap) installWrap.style.display = "none";
+}
+
+// Capture prompt as early as possible
+window.addEventListener("beforeinstallprompt", e => {
+    e.preventDefault();
+    installPrompt = e;
+    showInstallButton(); // show button as soon as prompt is available
+});
+
+// Hide once installed
+window.addEventListener("appinstalled", () => {
+    hideInstallButton();
+    installPrompt = null;
+    showToast("SnipAI installed! ✅");
+});
+
+// Install button click handler
+installWrap?.addEventListener("click", async () => {
+    if (installPrompt) {
+        // Best case: browser gives us a native one-tap install
+        installPrompt.prompt();
+        const { outcome } = await installPrompt.userChoice;
+        if (outcome === "accepted") {
+            hideInstallButton();
+            installPrompt = null;
+        }
+    } else {
+        // Fallback: show a guide modal since beforeinstallprompt didn't fire
+        showInstallGuide();
+    }
+});
+
+// ── Install Guide Modal ────────────────────────────────────
+function showInstallGuide() {
+    // Remove any existing modal
+    document.getElementById("installGuide")?.remove();
+
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isSamsung = /samsungbrowser/i.test(navigator.userAgent);
+
+    let steps = "";
+    if (isIOS) {
+        steps = `
+      <li>Tap the <strong>Share</strong> button (box with arrow) at the bottom of Safari</li>
+      <li>Scroll down and tap <strong>"Add to Home Screen"</strong></li>
+      <li>Tap <strong>Add</strong> in the top right</li>
+    `;
+    } else if (isSamsung) {
+        steps = `
+      <li>Tap the <strong>⋮ menu</strong> in the top right</li>
+      <li>Tap <strong>"Add page to"</strong></li>
+      <li>Tap <strong>"Home screen"</strong></li>
+    `;
+    } else {
+        // Chrome / Android default
+        steps = `
+      <li>Tap the <strong>⋮ menu</strong> in the top right of Chrome</li>
+      <li>Tap <strong>"Add to Home screen"</strong></li>
+      <li>Tap <strong>Install</strong> or <strong>Add</strong> to confirm</li>
+    `;
+    }
+
+    const modal = document.createElement("div");
+    modal.id = "installGuide";
+    modal.innerHTML = `
+    <div class="guide-backdrop"></div>
+    <div class="guide-box">
+      <div class="guide-header">
+        <span>⚡ Install SnipAI</span>
+        <button class="btn-icon" id="closeGuide">✕</button>
+      </div>
+      <p class="guide-subtitle">Follow these steps to install SnipAI on your device:</p>
+      <ol class="guide-steps">${steps}</ol>
+      <p class="guide-note">Once installed, SnipAI opens like a native app — no browser chrome, full screen.</p>
+      <button class="btn btn-primary guide-close-btn" id="closeGuideBtn">Got it</button>
+    </div>
+  `;
+
+    document.body.appendChild(modal);
+
+    // Animate in
+    requestAnimationFrame(() => modal.classList.add("guide-visible"));
+
+    // Close handlers
+    const close = () => {
+        modal.classList.remove("guide-visible");
+        setTimeout(() => modal.remove(), 250);
+    };
+
+    document.getElementById("closeGuide").addEventListener("click", close);
+    document.getElementById("closeGuideBtn").addEventListener("click", close);
+    modal.querySelector(".guide-backdrop").addEventListener("click", close);
+}
 
 // ── Sidebar ────────────────────────────────────────────────
 function openSidebar() {
@@ -185,10 +296,9 @@ function attachAutosaveListeners() {
     formDesc.addEventListener("input", scheduleAutosave);
 }
 
-// ── AI: Analyze → fill form ────────────────────────────────
+// ── AI: Analyze ────────────────────────────────────────────
 async function analyzeCode() {
     if (aiRunning) return;
-
     const code = formEditor?.getValue()?.trim();
     if (!code) {
         showToast("Paste some code first", "error");
@@ -208,7 +318,6 @@ async function analyzeCode() {
             body: JSON.stringify({ code })
         });
         const json = await res.json();
-
         if (!json.success) {
             showToast(json.error ?? "AI failed", "error");
             return;
@@ -218,13 +327,11 @@ async function analyzeCode() {
         formTitle.value = title;
         formDesc.value = description;
         formTags.value = tags.join(", ");
-
         if (language) {
             formLang.value = language;
             if (formEditor)
                 monaco.editor.setModelLanguage(formEditor.getModel(), language);
         }
-
         showToast("✦ AI filled the form", "ai");
     } catch {
         showToast("Could not reach AI", "error");
@@ -236,10 +343,9 @@ async function analyzeCode() {
     }
 }
 
-// ── AI: Explain snippet ────────────────────────────────────
+// ── AI: Explain ────────────────────────────────────────────
 async function explainSnippet() {
     if (aiRunning) return;
-
     const s = snippets.find(x => x.id === activeId);
     if (!s) return;
 
@@ -256,12 +362,10 @@ async function explainSnippet() {
             body: JSON.stringify({ code: s.code, language: s.language })
         });
         const json = await res.json();
-
         if (!json.success) {
             showToast(json.error ?? "AI failed", "error");
             return;
         }
-
         explainText.textContent = json.data.explanation;
         explainPanel.style.display = "block";
     } catch {
@@ -333,7 +437,7 @@ function renderList(data) {
     });
 }
 
-// ── Toolbar / Panel helpers ────────────────────────────────
+// ── Toolbar / Panel ────────────────────────────────────────
 function showToolbar(mode) {
     toolbarView.style.display = mode === "view" ? "flex" : "none";
     toolbarForm.style.display = mode === "form" ? "flex" : "none";
@@ -351,7 +455,6 @@ function openSnippet(id) {
 
     clearTimeout(autosaveTimer);
     activeId = id;
-
     showPanel("view");
     showToolbar("view");
     renderList(snippets);
@@ -438,7 +541,6 @@ document
 document
     .getElementById("welcomeNewBtn")
     .addEventListener("click", () => openForm());
-
 document.getElementById("analyzeBtn").addEventListener("click", analyzeCode);
 document.getElementById("explainBtn").addEventListener("click", explainSnippet);
 
@@ -497,7 +599,6 @@ document.getElementById("deleteBtn").addEventListener("click", async () => {
     }
 });
 
-// Sidebar
 document.getElementById("sidebarToggle").addEventListener("click", () => {
     sidebar.classList.contains("hidden") ? openSidebar() : closeSidebar();
 });
@@ -528,46 +629,12 @@ window.addEventListener("beforeunload", e => {
     }
 });
 
-// Live search
 let searchTimer;
 searchInput.addEventListener("input", () => {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(loadSnippets, 300);
 });
 langFilter.addEventListener("change", loadSnippets);
-
-// ── PWA Install ────────────────────────────────────────────
-// Capture the browser's install prompt before it disappears
-window.addEventListener("beforeinstallprompt", e => {
-    e.preventDefault(); // stop the auto mini-bar
-    installPrompt = e;
-
-    // Show our custom install button in the sidebar
-    const btn = document.getElementById("installBtn");
-    if (btn) btn.style.display = "block";
-});
-
-// When user taps our install button, trigger the native dialog
-document.getElementById("installBtn")?.addEventListener("click", async () => {
-    if (!installPrompt) return;
-
-    installPrompt.prompt();
-    const { outcome } = await installPrompt.userChoice;
-
-    if (outcome === "accepted") {
-        document.getElementById("installBtn").style.display = "none";
-        installPrompt = null;
-        showToast("SnipAI installed! ✅");
-    }
-});
-
-// Hide install button once app is installed
-window.addEventListener("appinstalled", () => {
-    const btn = document.getElementById("installBtn");
-    if (btn) btn.style.display = "none";
-    installPrompt = null;
-    showToast("SnipAI installed! ✅");
-});
 
 // ── Utility ────────────────────────────────────────────────
 function escHtml(str) {
@@ -582,5 +649,12 @@ initMonaco(async () => {
     attachAutosaveListeners();
     await loadSnippets();
     if (isMobile()) closeSidebar();
+
+    // Show install button if not already installed
+    // Small delay so beforeinstallprompt has a chance to fire first
+    setTimeout(() => {
+        if (!isInstalled()) showInstallButton();
+    }, 1500);
+
     console.log("SnipAI ready ✅");
 });

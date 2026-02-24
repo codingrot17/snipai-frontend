@@ -594,3 +594,95 @@ body {
         display: none;
     }
 }
+
+/* ── Install Guide Modal ───────────────────────────────── */
+#installGuide {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+
+#installGuide.guide-visible {
+    opacity: 1;
+}
+
+.guide-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+}
+
+.guide-box {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px 16px 0 0;
+    padding: 24px 20px 32px;
+    width: 100%;
+    max-width: 480px;
+    transform: translateY(40px);
+    transition: transform 0.25s ease;
+    z-index: 1;
+}
+
+#installGuide.guide-visible .guide-box {
+    transform: translateY(0);
+}
+
+.guide-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--accent);
+    margin-bottom: 10px;
+}
+
+.guide-subtitle {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 16px;
+}
+
+.guide-steps {
+    padding-left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.guide-steps li {
+    font-size: 14px;
+    color: var(--text);
+    line-height: 1.5;
+}
+
+.guide-steps li strong {
+    color: var(--accent);
+}
+
+.guide-note {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 20px;
+    line-height: 1.5;
+    padding: 10px 12px;
+    background: rgba(124, 106, 247, 0.06);
+    border-radius: var(--radius);
+    border-left: 2px solid var(--accent);
+}
+
+.guide-close-btn {
+    width: 100%;
+    padding: 12px;
+    font-size: 14px;
+}
