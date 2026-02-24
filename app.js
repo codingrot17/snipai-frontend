@@ -86,72 +86,12 @@ function showAuth() {
 }
 
 // ── Auth setup ─────────────────────────────────────────────
-function setupAuth() {
-  const $ = id => document.getElementById(id);
-
-  // Tab switching
-  document.querySelectorAll('.auth-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      const t = tab.dataset.tab;
-      $('loginForm').classList.toggle('hidden',    t !== 'login');
-      $('registerForm').classList.toggle('hidden', t !== 'register');
-    });
-  });
-
-  // Login
-  $('loginBtn').addEventListener('click', async () => {
-    const email = $('loginEmail').value.trim();
-    const pass  = $('loginPassword').value;
-    const err   = $('loginError');
-    err.textContent = '';
-    if (!email || !pass) { err.textContent = 'Please fill all fields'; return; }
-    $('loginBtn').textContent = 'Signing in...';
-    $('loginBtn').disabled = true;
-    try {
-      const user = await Auth.login(email, pass);
-      showApp(user);
-      await loadSnippets();
-    } catch (e) {
-      err.textContent = e.message?.includes('Invalid') ? 'Wrong email or password' : 'Login failed. Try again.';
-    } finally {
-      $('loginBtn').textContent = 'Sign In';
-      $('loginBtn').disabled = false;
-    }
-  });
-
-  // Register
-  $('registerBtn').addEventListener('click', async () => {
-    const name  = $('regName').value.trim();
-    const email = $('regEmail').value.trim();
-    const pass  = $('regPassword').value;
-    const err   = $('registerError');
-    err.textContent = '';
-    if (!name || !email || !pass) { err.textContent = 'Please fill all fields'; return; }
-    if (pass.length < 8) { err.textContent = 'Password must be at least 8 characters'; return; }
-    $('registerBtn').textContent = 'Creating...';
-    $('registerBtn').disabled = true;
-    try {
-      const user = await Auth.register(name, email, pass);
-      showApp(user);
-      await loadSnippets();
-    } catch (e) {
-      err.textContent = e.message?.includes('already') ? 'Email already in use' : 'Registration failed. Try again.';
-    } finally {
-      $('registerBtn').textContent = 'Create Account';
-      $('registerBtn').disabled = false;
-    }
-  });
-
-  // Enter key support
-  ['loginEmail','loginPassword'].forEach(id => {
-    $(id).addEventListener('keydown', e => { if (e.key === 'Enter') $('loginBtn').click(); });
-  });
-  ['regName','regEmail','regPassword'].forEach(id => {
-    $(id).addEventListener('keydown', e => { if (e.key === 'Enter') $('registerBtn').click(); });
-  });
-}
+// Auth logic lives in auth.js
+// This hook is called by auth.js after successful login/register
+window.onAuthSuccess = async function(user) {
+  showApp(user);
+  await loadSnippets();
+};
 
 // ── Settings ───────────────────────────────────────────────
 function setupSettings() {
@@ -570,7 +510,7 @@ function setupPWA() {
 // Called from index.html after Monaco and Appwrite SDK are loaded
 window.initApp = function() {
   resolveDOM();
-  setupAuth();
+  if (typeof setupAuth === 'function') setupAuth(); // from auth.js
   setupSettings();
   setupSidebar();
   setupAppEvents();
@@ -578,6 +518,15 @@ window.initApp = function() {
 
   require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } });
   require(['vs/editor/editor.main'], async () => {
+
+  // Handle OAuth redirect (Google/GitHub redirect back to app)
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('oauth') === 'success') {
+    // Clean URL
+    window.history.replaceState({}, '', window.location.pathname);
+    // getUser will pick up the session Appwrite set via cookie
+  }
+
     // Try cached user immediately for instant UI
     const cached = Auth.getCachedUser();
     if (cached) {
