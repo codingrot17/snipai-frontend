@@ -1,4 +1,4 @@
-const CACHE = "snipai-v1";
+const CACHE = "snipai-v2";
 const CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
 
 // Assets to cache on install
