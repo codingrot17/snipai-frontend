@@ -1,91 +1,131 @@
-const CACHE = "snipai-v2";
-const CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
+// ── Cache version — CHANGE THIS STRING on every deploy ─────
+// Vercel injects VITE_VERCEL_GIT_COMMIT_SHA but we use a timestamp fallback
+const CACHE_VERSION = "snipai-v1771944478604650217";
+const CACHE = CACHE_VERSION;
 
-// Assets to cache on install
-const PRECACHE = [
+// Only cache third-party CDN assets (Monaco, Appwrite SDK)
+// Our OWN files always go network-first so updates appear instantly
+const CDN_CACHE = "snipai-cdn-v1";
+
+const CDN_HOSTS = [
+    "cdnjs.cloudflare.com",
+    "cdn.jsdelivr.net",
+    "fonts.googleapis.com",
+    "fonts.gstatic.com"
+];
+
+const PRECACHE_URLS = [
     "/",
     "/index.html",
     "/style.css",
+    "/auth.css",
     "/app.js",
-    "/manifest.json",
-    "/icons/icon-192.png",
-    "/icons/icon-512.png"
+    "/auth.js",
+    "/appwrite.js",
+    "/manifest.json"
 ];
 
-// ── Install: precache all shell assets ─────────────────────
+// ── Install ────────────────────────────────────────────────
 self.addEventListener("install", e => {
+    // Skip waiting immediately so new SW activates right away
+    self.skipWaiting();
     e.waitUntil(
-        caches
-            .open(CACHE)
-            .then(cache => cache.addAll(PRECACHE))
-            .then(() => self.skipWaiting())
+        caches.open(CACHE).then(cache =>
+            // Don't let precache failures block install
+            Promise.allSettled(
+                PRECACHE_URLS.map(url =>
+                    fetch(url, { cache: "no-store" })
+                        .then(res => {
+                            if (res.ok) cache.put(url, res);
+                        })
+                        .catch(() => {})
+                )
+            )
+        )
     );
 });
 
-// ── Activate: remove old caches ────────────────────────────
+// ── Activate ───────────────────────────────────────────────
 self.addEventListener("activate", e => {
     e.waitUntil(
         caches
             .keys()
             .then(keys =>
                 Promise.all(
-                    keys.filter(k => k !== CACHE).map(k => caches.delete(k))
+                    keys
+                        .filter(k => k !== CACHE && k !== CDN_CACHE)
+                        .map(k => caches.delete(k))
                 )
             )
-            .then(() => self.clients.claim())
+            .then(() => self.clients.claim()) // take control immediately
     );
 });
 
-// ── Fetch: network-first for API, cache-first for assets ───
+// ── Fetch ──────────────────────────────────────────────────
 self.addEventListener("fetch", e => {
     const url = new URL(e.request.url);
 
-    // Always go network-first for API calls — never serve stale AI results
+    // 1. CDN assets — cache-first (they never change for a given URL)
+    if (CDN_HOSTS.some(h => url.hostname === h)) {
+        e.respondWith(
+            caches.open(CDN_CACHE).then(cache =>
+                cache.match(e.request).then(cached => {
+                    if (cached) return cached;
+                    return fetch(e.request).then(res => {
+                        if (res.ok) cache.put(e.request, res.clone());
+                        return res;
+                    });
+                })
+            )
+        );
+        return;
+    }
+
+    // 2. API / AI calls — always network, never cache
     if (
-        url.pathname.startsWith("/snippets") ||
-        url.pathname.startsWith("/ai")
+        url.hostname.includes("appwrite.io") ||
+        url.hostname.includes("groq.com")
     ) {
         e.respondWith(
             fetch(e.request).catch(
                 () =>
                     new Response(
-                        JSON.stringify({
-                            success: false,
-                            error: "You are offline"
-                        }),
-                        { headers: { "Content-Type": "application/json" } }
+                        JSON.stringify({ success: false, error: "Offline" }),
+                        {
+                            headers: { "Content-Type": "application/json" }
+                        }
                     )
             )
         );
         return;
     }
 
-    // Cache-first for Monaco CDN and static assets
+    // 3. Our own app files — NETWORK FIRST, fall back to cache
+    // This ensures updates are seen immediately after deploy
     e.respondWith(
-        caches.match(e.request).then(cached => {
-            if (cached) return cached;
-
-            return fetch(e.request)
-                .then(response => {
-                    // Only cache valid same-origin or CDN responses
-                    if (
-                        response.ok &&
-                        (url.origin === self.location.origin ||
-                            url.hostname === "cdnjs.cloudflare.com")
-                    ) {
-                        const clone = response.clone();
-                        caches
-                            .open(CACHE)
-                            .then(cache => cache.put(e.request, clone));
-                    }
-                    return response;
-                })
-                .catch(() => {
-                    // Offline fallback for navigation requests
-                    if (e.request.mode === "navigate") {
-                        return caches.match("/index.html");
-                    }
-                });
-        })
+        fetch(e.request, { cache: "no-cache" })
+            .then(res => {
+                if (res.ok) {
+                    const clone = res.clone();
+                    caches.open(CACHE).then(c => c.put(e.request, clone));
+                }
+                return res;
+            })
+            .catch(() =>
+                caches
+                    .match(e.request)
+                    .then(
+                        cached =>
+                            cached ||
+                            (e.request.mode === "navigate"
+                                ? caches.match("/index.html")
+                                : new Response("Offline", { status: 503 }))
+                    )
+            )
     );
+});
+
+// ── Message: force update from app ────────────────────────
+self.addEventListener("message", e => {
+    if (e.data === "SKIP_WAITING") self.skipWaiting();
 });

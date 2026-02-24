@@ -356,10 +356,29 @@
 <div class="toast" id="toast"></div>
 
 <script src="appwrite.js"></script>
+<script src="auth.js"></script>
 <script src="app.js"></script>
 <script>
+  // SW registration with auto-update — new deploys reload automatically
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    window.addEventListener('load', async () => {
+      try {
+        const reg = await navigator.serviceWorker.register('/sw.js');
+        reg.update();
+        reg.addEventListener('updatefound', () => {
+          const newSW = reg.installing;
+          newSW.addEventListener('statechange', () => {
+            if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+              newSW.postMessage('SKIP_WAITING');
+            }
+          });
+        });
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (!refreshing) { refreshing = true; window.location.reload(); }
+        });
+      } catch(e) { console.warn('SW:', e); }
+    });
   }
   window.addEventListener('load', () => window.initApp());
 </script>
