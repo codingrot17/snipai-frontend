@@ -1,34 +1,24 @@
-// ── Appwrite Config ────────────────────────────────────────
-import {
-    Client,
-    Account,
-    Databases,
-    ID,
-    Query,
-    Permission,
-    Role
-} from "https://cdn.jsdelivr.net/npm/appwrite@16/src/index.js";
+// ── Appwrite SDK via CDN (loaded in index.html) ───────────
+// All Appwrite classes come from window.Appwrite global
+
+const { Client, Account, Databases, ID, Query, Permission, Role } = Appwrite;
 
 const PROJECT_ID = "699d610a00200b7c3ede";
 const API_ENDPOINT = "https://fra.cloud.appwrite.io/v1";
-export const DATABASE_ID = "699d67950017f657bcb5";
-export const COLLECTION_ID = "snippets";
+const DATABASE_ID = "699d67950017f657bcb5";
+const COLLECTION_ID = "snippets";
 
-// ── Client ─────────────────────────────────────────────────
 const client = new Client().setEndpoint(API_ENDPOINT).setProject(PROJECT_ID);
 
-export const account = new Account(client);
-export const databases = new Databases(client);
+const account = new Account(client);
+const databases = new Databases(client);
 
 // ── LocalStorage Keys ──────────────────────────────────────
-export const LS = {
-    USER: "snipai_user",
-    GROQ_KEY: "snipai_groq_key",
-    SIDEBAR: "snipai_sidebar"
-};
+const LS_USER = "snipai_user";
+const LS_GROQ_KEY = "snipai_groq_key";
 
 // ── Auth ───────────────────────────────────────────────────
-export const Auth = {
+const Auth = {
     async register(name, email, password) {
         await account.create(ID.unique(), email, password, name);
         return this.login(email, password);
@@ -37,7 +27,7 @@ export const Auth = {
     async login(email, password) {
         await account.createEmailPasswordSession(email, password);
         const user = await account.get();
-        localStorage.setItem(LS.USER, JSON.stringify(user));
+        localStorage.setItem(LS_USER, JSON.stringify(user));
         return user;
     },
 
@@ -45,24 +35,24 @@ export const Auth = {
         try {
             await account.deleteSession("current");
         } catch {}
-        localStorage.removeItem(LS.USER);
-        localStorage.removeItem(LS.GROQ_KEY);
+        localStorage.removeItem(LS_USER);
+        localStorage.removeItem(LS_GROQ_KEY);
     },
 
     async getUser() {
         try {
             const user = await account.get();
-            localStorage.setItem(LS.USER, JSON.stringify(user));
+            localStorage.setItem(LS_USER, JSON.stringify(user));
             return user;
         } catch {
-            localStorage.removeItem(LS.USER);
+            localStorage.removeItem(LS_USER);
             return null;
         }
     },
 
     getCachedUser() {
         try {
-            return JSON.parse(localStorage.getItem(LS.USER));
+            return JSON.parse(localStorage.getItem(LS_USER));
         } catch {
             return null;
         }
@@ -70,27 +60,25 @@ export const Auth = {
 };
 
 // ── Groq Key ───────────────────────────────────────────────
-// Stored in localStorage for instant offline access
-// + mirrored in Appwrite prefs for cross-device sync
-export const GroqKey = {
+const GroqKey = {
     get() {
-        return localStorage.getItem(LS.GROQ_KEY) ?? "";
+        return localStorage.getItem(LS_GROQ_KEY) ?? "";
     },
 
     async save(key) {
-        localStorage.setItem(LS.GROQ_KEY, key);
+        localStorage.setItem(LS_GROQ_KEY, key);
         try {
             await account.updatePrefs({ groqKey: key });
         } catch {}
     },
 
     async load() {
-        const local = localStorage.getItem(LS.GROQ_KEY);
+        const local = localStorage.getItem(LS_GROQ_KEY);
         if (local) return local;
         try {
             const prefs = await account.getPrefs();
             if (prefs.groqKey) {
-                localStorage.setItem(LS.GROQ_KEY, prefs.groqKey);
+                localStorage.setItem(LS_GROQ_KEY, prefs.groqKey);
                 return prefs.groqKey;
             }
         } catch {}
@@ -99,7 +87,7 @@ export const GroqKey = {
 };
 
 // ── Snippets ───────────────────────────────────────────────
-export const Snippets = {
+const Snippets = {
     _perms(userId, isPublic) {
         const p = [
             Permission.read(Role.user(userId)),
@@ -182,8 +170,8 @@ export const Snippets = {
     }
 };
 
-// ── AI (direct Groq from browser, user's own key) ──────────
-export const AI = {
+// ── AI ─────────────────────────────────────────────────────
+const AI = {
     async _call(system, user) {
         const key = GroqKey.get();
         if (!key) throw new Error("NO_KEY");
@@ -216,19 +204,21 @@ export const AI = {
 
     async analyze(code) {
         const system = `You are a senior developer assistant.
-Respond ONLY with valid JSON, no markdown:
+Respond ONLY with valid JSON, no markdown, no explanation:
 {"language":"<lang>","title":"<max 6 words>","description":"<one sentence>","tags":["tag1","tag2","tag3"]}`;
         const raw = await this._call(
             system,
             `Analyze:\n\n${code.slice(0, 2000)}`
         );
-        const clean = raw.replace(/```json|```/gi, "").trim();
+        const clean = raw
+            .replace(/` + "```" + `json|` + "```" + `/gi, "")
+            .trim();
         return JSON.parse(clean);
     },
 
     async explain(code, language) {
         const system = `You are a helpful coding tutor. Explain code for an intermediate developer.
-Plain English, under 120 words, no bullet points, no markdown headers.`;
+Plain English, under 120 words, no bullet points, no markdown.`;
         return this._call(
             system,
             `Explain this ${language} snippet:\n\n${code.slice(0, 2000)}`
