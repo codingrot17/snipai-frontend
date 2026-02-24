@@ -6,20 +6,26 @@
         <meta name="description" content="AI-powered code snippet manager" />
         <meta name="theme-color" content="#7c6af7" />
 
+        <!-- iOS PWA -->
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta
+            name="apple-mobile-web-app-status-bar-style"
+            content="black-translucent"
+        />
+        <meta name="apple-mobile-web-app-title" content="SnipAI" />
+
         <title>SnipAI — Code Snippet Manager</title>
 
-        <!-- PWA -->
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+        <link rel="icon" type="image/png" href="/icons/icon-192.png" />
 
         <link rel="stylesheet" href="style.css" />
         <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
     </head>
     <body>
-        <!-- ── SIDEBAR OVERLAY ─────────────────────────────── -->
         <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-        <!-- ── SIDEBAR ─────────────────────────────────────── -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <span class="logo">⚡ SnipAI</span>
@@ -55,29 +61,18 @@
             <ul class="snippet-list" id="snippetList">
                 <li class="empty-state">No snippets yet. Create one!</li>
             </ul>
-
-            <!-- Install button — shown only when PWA prompt is available -->
-            <div class="install-wrap" id="installBtn" style="display: none">
-                <button class="btn btn-primary install-btn">
-                    ⬇ Install SnipAI
-                </button>
-            </div>
+            <!-- install button is now injected dynamically by app.js -->
         </aside>
 
-        <!-- ── MAIN ────────────────────────────────────────── -->
         <main class="main" id="main">
             <header class="toolbar">
                 <div class="toolbar-left">
                     <button class="btn-icon" id="sidebarToggle">☰</button>
-                    <span
-                        class="snippet-title-display"
-                        id="snippetTitleDisplay"
+                    <span class="snippet-title-display" id="snippetTitleDisplay"
+                        >Select a snippet</span
                     >
-                        Select a snippet
-                    </span>
                 </div>
 
-                <!-- View toolbar -->
                 <div
                     class="toolbar-right"
                     id="toolbarView"
@@ -94,7 +89,6 @@
                     </button>
                 </div>
 
-                <!-- Form toolbar -->
                 <div
                     class="toolbar-right"
                     id="toolbarForm"
@@ -113,7 +107,6 @@
                 </div>
             </header>
 
-            <!-- View Panel -->
             <section class="panel" id="viewPanel">
                 <div class="welcome" id="welcomeMsg">
                     <p>⚡ Welcome to <strong>SnipAI</strong></p>
@@ -131,7 +124,6 @@
                     <p class="snippet-desc" id="snippetDesc"></p>
                     <div class="tags-wrap" id="tagsWrap"></div>
                     <div id="viewEditor" class="editor-wrap"></div>
-
                     <div
                         class="explain-panel"
                         id="explainPanel"
@@ -148,7 +140,6 @@
                 </div>
             </section>
 
-            <!-- Form Panel -->
             <section class="panel" id="formPanel" style="display: none">
                 <form class="snippet-form" id="snippetForm">
                     <div class="ai-status" id="aiStatus" style="display: none">
@@ -157,7 +148,6 @@
                             >AI is analyzing your code…</span
                         >
                     </div>
-
                     <div class="form-row">
                         <input
                             type="text"

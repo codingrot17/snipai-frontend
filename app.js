@@ -11,7 +11,7 @@ let editingId = null;
 let autosaveTimer = null;
 let isDirty = false;
 let aiRunning = false;
-let installPrompt = null; // deferred beforeinstallprompt event
+let deferredPrompt = null; // holds beforeinstallprompt event
 
 // ── DOM Refs ───────────────────────────────────────────────
 const snippetList = document.getElementById("snippetList");
@@ -39,60 +39,189 @@ const explainText = document.getElementById("explainText");
 const toast = document.getElementById("toast");
 const sidebar = document.getElementById("sidebar");
 const overlay = document.getElementById("sidebarOverlay");
-const installWrap = document.getElementById("installBtn");
 
-// ── PWA Install Logic ──────────────────────────────────────
+// ── PWA Install — MCE style (dynamic, appended to body) ────
 
-function isInstalled() {
-    return (
-        window.matchMedia("(display-mode: standalone)").matches ||
-        window.navigator.standalone === true
-    ); // iOS Safari
-}
+// Inject install button + guide modal styles once
+const pwaStyles = document.createElement("style");
+pwaStyles.textContent = `
+  #snipai-install-btn {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #7c6af7 0%, #a78bfa 100%);
+    color: #fff;
+    border: none;
+    padding: 13px 28px;
+    border-radius: 50px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(124, 106, 247, 0.45);
+    z-index: 998;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    animation: snipai-slideup 0.35s ease-out;
+    touch-action: manipulation;
+    white-space: nowrap;
+  }
 
+  #snipai-install-btn:active {
+    transform: translateX(-50%) scale(0.97);
+  }
+
+  @keyframes snipai-slideup {
+    from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+    to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+  }
+
+  /* Guide modal */
+  #snipai-guide {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+
+  #snipai-guide.guide-visible { opacity: 1; }
+
+  .snipai-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+  }
+
+  .snipai-guide-box {
+    position: relative;
+    background: #1a1d27;
+    border: 1px solid #2a2d3a;
+    border-radius: 20px 20px 0 0;
+    padding: 24px 20px 36px;
+    width: 100%;
+    max-width: 480px;
+    transform: translateY(30px);
+    transition: transform 0.25s ease;
+    z-index: 1;
+  }
+
+  #snipai-guide.guide-visible .snipai-guide-box {
+    transform: translateY(0);
+  }
+
+  .snipai-guide-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 700;
+    font-size: 16px;
+    color: #7c6af7;
+    margin-bottom: 10px;
+  }
+
+  .snipai-close {
+    background: transparent;
+    border: none;
+    color: #6b7280;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    line-height: 1;
+    touch-action: manipulation;
+  }
+
+  .snipai-close:active { background: rgba(255,255,255,0.08); }
+
+  .snipai-guide-sub {
+    font-size: 13px;
+    color: #6b7280;
+    margin-bottom: 16px;
+  }
+
+  .snipai-steps {
+    padding-left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .snipai-steps li {
+    font-size: 14px;
+    color: #e2e4ed;
+    line-height: 1.5;
+  }
+
+  .snipai-steps li strong { color: #a78bfa; }
+
+  .snipai-note {
+    font-size: 12px;
+    color: #6b7280;
+    margin-bottom: 20px;
+    line-height: 1.5;
+    padding: 10px 12px;
+    background: rgba(124,106,247,0.06);
+    border-radius: 8px;
+    border-left: 2px solid #7c6af7;
+  }
+
+  .snipai-confirm-btn {
+    width: 100%;
+    padding: 13px;
+    font-size: 14px;
+    font-weight: 600;
+    background: #7c6af7;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .snipai-confirm-btn:active { opacity: 0.85; }
+`;
+document.head.appendChild(pwaStyles);
+
+// ── Create and show the floating install button ────────────
 function showInstallButton() {
-    if (isInstalled()) return; // already installed, don't show
-    if (installWrap) installWrap.style.display = "block";
-}
+    // Don't show if already installed
+    if (window.matchMedia("(display-mode: standalone)").matches) return;
+    // Don't duplicate
+    if (document.getElementById("snipai-install-btn")) return;
 
-function hideInstallButton() {
-    if (installWrap) installWrap.style.display = "none";
-}
+    const btn = document.createElement("button");
+    btn.id = "snipai-install-btn";
+    btn.innerHTML = "⬇ Install SnipAI";
+    document.body.appendChild(btn); // ← appended to body, not inside sidebar
 
-// Capture prompt as early as possible
-window.addEventListener("beforeinstallprompt", e => {
-    e.preventDefault();
-    installPrompt = e;
-    showInstallButton(); // show button as soon as prompt is available
-});
-
-// Hide once installed
-window.addEventListener("appinstalled", () => {
-    hideInstallButton();
-    installPrompt = null;
-    showToast("SnipAI installed! ✅");
-});
-
-// Install button click handler
-installWrap?.addEventListener("click", async () => {
-    if (installPrompt) {
-        // Best case: browser gives us a native one-tap install
-        installPrompt.prompt();
-        const { outcome } = await installPrompt.userChoice;
-        if (outcome === "accepted") {
-            hideInstallButton();
-            installPrompt = null;
+    btn.addEventListener("click", async () => {
+        if (deferredPrompt) {
+            // Native one-tap install
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === "accepted") {
+                btn.remove();
+                deferredPrompt = null;
+                showToast("SnipAI installed! ✅");
+            }
+        } else {
+            // Fallback: step-by-step guide
+            showInstallGuide();
         }
-    } else {
-        // Fallback: show a guide modal since beforeinstallprompt didn't fire
-        showInstallGuide();
-    }
-});
+    });
+}
 
-// ── Install Guide Modal ────────────────────────────────────
+// ── Step-by-step install guide modal ──────────────────────
 function showInstallGuide() {
-    // Remove any existing modal
-    document.getElementById("installGuide")?.remove();
+    document.getElementById("snipai-guide")?.remove();
 
     const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
     const isSamsung = /samsungbrowser/i.test(navigator.userAgent);
@@ -102,54 +231,62 @@ function showInstallGuide() {
         steps = `
       <li>Tap the <strong>Share</strong> button (box with arrow) at the bottom of Safari</li>
       <li>Scroll down and tap <strong>"Add to Home Screen"</strong></li>
-      <li>Tap <strong>Add</strong> in the top right</li>
-    `;
+      <li>Tap <strong>Add</strong> in the top right corner</li>`;
     } else if (isSamsung) {
         steps = `
       <li>Tap the <strong>⋮ menu</strong> in the top right</li>
       <li>Tap <strong>"Add page to"</strong></li>
-      <li>Tap <strong>"Home screen"</strong></li>
-    `;
+      <li>Tap <strong>"Home screen"</strong></li>`;
     } else {
-        // Chrome / Android default
         steps = `
-      <li>Tap the <strong>⋮ menu</strong> in the top right of Chrome</li>
+      <li>Tap the <strong>⋮ menu</strong> in the top-right of Chrome</li>
       <li>Tap <strong>"Add to Home screen"</strong></li>
-      <li>Tap <strong>Install</strong> or <strong>Add</strong> to confirm</li>
-    `;
+      <li>Tap <strong>Install</strong> or <strong>Add</strong> to confirm</li>`;
     }
 
-    const modal = document.createElement("div");
-    modal.id = "installGuide";
-    modal.innerHTML = `
-    <div class="guide-backdrop"></div>
-    <div class="guide-box">
-      <div class="guide-header">
+    const guide = document.createElement("div");
+    guide.id = "snipai-guide";
+    guide.innerHTML = `
+    <div class="snipai-backdrop"></div>
+    <div class="snipai-guide-box">
+      <div class="snipai-guide-header">
         <span>⚡ Install SnipAI</span>
-        <button class="btn-icon" id="closeGuide">✕</button>
+        <button class="snipai-close">✕</button>
       </div>
-      <p class="guide-subtitle">Follow these steps to install SnipAI on your device:</p>
-      <ol class="guide-steps">${steps}</ol>
-      <p class="guide-note">Once installed, SnipAI opens like a native app — no browser chrome, full screen.</p>
-      <button class="btn btn-primary guide-close-btn" id="closeGuideBtn">Got it</button>
+      <p class="snipai-guide-sub">Follow these steps to install on your device:</p>
+      <ol class="snipai-steps">${steps}</ol>
+      <p class="snipai-note">Once installed, SnipAI opens like a native app — full screen, no browser bar.</p>
+      <button class="snipai-confirm-btn">Got it!</button>
     </div>
   `;
-
-    document.body.appendChild(modal);
+    document.body.appendChild(guide);
 
     // Animate in
-    requestAnimationFrame(() => modal.classList.add("guide-visible"));
+    requestAnimationFrame(() => guide.classList.add("guide-visible"));
 
-    // Close handlers
     const close = () => {
-        modal.classList.remove("guide-visible");
-        setTimeout(() => modal.remove(), 250);
+        guide.classList.remove("guide-visible");
+        setTimeout(() => guide.remove(), 250);
     };
 
-    document.getElementById("closeGuide").addEventListener("click", close);
-    document.getElementById("closeGuideBtn").addEventListener("click", close);
-    modal.querySelector(".guide-backdrop").addEventListener("click", close);
+    guide.querySelector(".snipai-close").addEventListener("click", close);
+    guide.querySelector(".snipai-confirm-btn").addEventListener("click", close);
+    guide.querySelector(".snipai-backdrop").addEventListener("click", close);
 }
+
+// ── Listen for browser install prompt ─────────────────────
+window.addEventListener("beforeinstallprompt", e => {
+    e.preventDefault();
+    deferredPrompt = e;
+    showInstallButton(); // show button immediately when prompt is available
+});
+
+// ── Hide button once installed ─────────────────────────────
+window.addEventListener("appinstalled", () => {
+    document.getElementById("snipai-install-btn")?.remove();
+    deferredPrompt = null;
+    showToast("SnipAI installed! ✅");
+});
 
 // ── Sidebar ────────────────────────────────────────────────
 function openSidebar() {
@@ -377,7 +514,7 @@ async function explainSnippet() {
     }
 }
 
-// ── API Calls ──────────────────────────────────────────────
+// ── API ────────────────────────────────────────────────────
 async function fetchSnippets(search = "", lang = "") {
     const params = new URLSearchParams();
     if (search) params.set("search", search);
@@ -649,12 +786,5 @@ initMonaco(async () => {
     attachAutosaveListeners();
     await loadSnippets();
     if (isMobile()) closeSidebar();
-
-    // Show install button if not already installed
-    // Small delay so beforeinstallprompt has a chance to fire first
-    setTimeout(() => {
-        if (!isInstalled()) showInstallButton();
-    }, 1500);
-
     console.log("SnipAI ready ✅");
 });
