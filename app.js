@@ -10,7 +10,8 @@ let formEditor = null;
 let editingId = null;
 let autosaveTimer = null;
 let isDirty = false;
-let aiRunning = false; // prevent concurrent AI calls
+let aiRunning = false;
+let installPrompt = null; // holds the deferred PWA install event
 
 // ── DOM Refs ───────────────────────────────────────────────
 const snippetList = document.getElementById("snippetList");
@@ -111,7 +112,7 @@ function setAiStatus(visible, text = "") {
     aiStatusText.textContent = text;
 }
 
-// ── Build & Validate form payload ──────────────────────────
+// ── Form Payload ───────────────────────────────────────────
 function getFormPayload() {
     return {
         title: formTitle.value.trim(),
@@ -184,7 +185,7 @@ function attachAutosaveListeners() {
     formDesc.addEventListener("input", scheduleAutosave);
 }
 
-// ── AI: Analyze code → fill form fields ───────────────────
+// ── AI: Analyze → fill form ────────────────────────────────
 async function analyzeCode() {
     if (aiRunning) return;
 
@@ -197,9 +198,8 @@ async function analyzeCode() {
     aiRunning = true;
     const analyzeBtn = document.getElementById("analyzeBtn");
     analyzeBtn.disabled = true;
-
     setAiStatus(true, "AI is analyzing your code…");
-    clearTimeout(autosaveTimer); // pause autosave during AI call
+    clearTimeout(autosaveTimer);
 
     try {
         const res = await fetch(`${API}/ai/analyze`, {
@@ -215,18 +215,14 @@ async function analyzeCode() {
         }
 
         const { language, title, description, tags } = json.data;
-
-        // Fill form fields with AI suggestions
         formTitle.value = title;
         formDesc.value = description;
         formTags.value = tags.join(", ");
 
-        // Update language selector + Monaco model
         if (language) {
             formLang.value = language;
-            if (formEditor) {
+            if (formEditor)
                 monaco.editor.setModelLanguage(formEditor.getModel(), language);
-            }
         }
 
         showToast("✦ AI filled the form", "ai");
@@ -236,11 +232,11 @@ async function analyzeCode() {
         aiRunning = false;
         analyzeBtn.disabled = false;
         setAiStatus(false);
-        scheduleAutosave(); // resume autosave with new data
+        scheduleAutosave();
     }
 }
 
-// ── AI: Explain current snippet ────────────────────────────
+// ── AI: Explain snippet ────────────────────────────────────
 async function explainSnippet() {
     if (aiRunning) return;
 
@@ -251,8 +247,6 @@ async function explainSnippet() {
     const explainBtn = document.getElementById("explainBtn");
     explainBtn.disabled = true;
     explainBtn.textContent = "✦ Thinking…";
-
-    // Hide panel while loading
     explainPanel.style.display = "none";
 
     try {
@@ -339,7 +333,7 @@ function renderList(data) {
     });
 }
 
-// ── Show Toolbar / Panel ───────────────────────────────────
+// ── Toolbar / Panel helpers ────────────────────────────────
 function showToolbar(mode) {
     toolbarView.style.display = mode === "view" ? "flex" : "none";
     toolbarForm.style.display = mode === "form" ? "flex" : "none";
@@ -350,14 +344,14 @@ function showPanel(mode) {
     formPanel.style.display = mode === "form" ? "flex" : "none";
 }
 
-// ── Open Snippet (View) ────────────────────────────────────
+// ── Open Snippet ───────────────────────────────────────────
 function openSnippet(id) {
     const s = snippets.find(x => x.id === id);
     if (!s) return;
 
     clearTimeout(autosaveTimer);
-
     activeId = id;
+
     showPanel("view");
     showToolbar("view");
     renderList(snippets);
@@ -369,7 +363,7 @@ function openSnippet(id) {
     welcomeMsg.style.display = "none";
     snippetDetail.style.display = "flex";
     snippetDesc.textContent = s.description || "";
-    explainPanel.style.display = "none"; // reset explain on new snippet
+    explainPanel.style.display = "none";
 
     tagsWrap.innerHTML = s.tags
         .map(t => `<span class="tag">${escHtml(t)}</span>`)
@@ -385,7 +379,7 @@ function openSnippet(id) {
     if (isMobile()) closeSidebar();
 }
 
-// ── Open Form (Create / Edit) ──────────────────────────────
+// ── Open Form ─────────────────────────────────────────────
 function openForm(snippet = null) {
     clearTimeout(autosaveTimer);
     isDirty = false;
@@ -445,25 +439,19 @@ document
     .getElementById("welcomeNewBtn")
     .addEventListener("click", () => openForm());
 
-// ✦ AI Fill button
 document.getElementById("analyzeBtn").addEventListener("click", analyzeCode);
-
-// ✦ AI Explain button
 document.getElementById("explainBtn").addEventListener("click", explainSnippet);
 
-// Close explanation panel
 document.getElementById("closeExplainBtn").addEventListener("click", () => {
     explainPanel.style.display = "none";
 });
 
-// Save
 document.getElementById("saveBtn").addEventListener("click", async () => {
     clearTimeout(autosaveTimer);
     const result = await saveSnippet(false);
     if (result) openSnippet(result.id ?? editingId);
 });
 
-// Cancel
 document.getElementById("cancelBtn").addEventListener("click", () => {
     clearTimeout(autosaveTimer);
     isDirty = false;
@@ -477,13 +465,11 @@ document.getElementById("cancelBtn").addEventListener("click", () => {
     }
 });
 
-// Edit
 document.getElementById("editBtn").addEventListener("click", () => {
     const s = snippets.find(x => x.id === activeId);
     if (s) openForm(s);
 });
 
-// Copy
 document.getElementById("copyBtn").addEventListener("click", () => {
     const s = snippets.find(x => x.id === activeId);
     if (!s) return;
@@ -493,7 +479,6 @@ document.getElementById("copyBtn").addEventListener("click", () => {
         .catch(() => showToast("Copy failed", "error"));
 });
 
-// Delete
 document.getElementById("deleteBtn").addEventListener("click", async () => {
     if (!activeId) return;
     const s = snippets.find(x => x.id === activeId);
@@ -551,6 +536,39 @@ searchInput.addEventListener("input", () => {
 });
 langFilter.addEventListener("change", loadSnippets);
 
+// ── PWA Install ────────────────────────────────────────────
+// Capture the browser's install prompt before it disappears
+window.addEventListener("beforeinstallprompt", e => {
+    e.preventDefault(); // stop the auto mini-bar
+    installPrompt = e;
+
+    // Show our custom install button in the sidebar
+    const btn = document.getElementById("installBtn");
+    if (btn) btn.style.display = "block";
+});
+
+// When user taps our install button, trigger the native dialog
+document.getElementById("installBtn")?.addEventListener("click", async () => {
+    if (!installPrompt) return;
+
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+
+    if (outcome === "accepted") {
+        document.getElementById("installBtn").style.display = "none";
+        installPrompt = null;
+        showToast("SnipAI installed! ✅");
+    }
+});
+
+// Hide install button once app is installed
+window.addEventListener("appinstalled", () => {
+    const btn = document.getElementById("installBtn");
+    if (btn) btn.style.display = "none";
+    installPrompt = null;
+    showToast("SnipAI installed! ✅");
+});
+
 // ── Utility ────────────────────────────────────────────────
 function escHtml(str) {
     return str
@@ -558,34 +576,6 @@ function escHtml(str) {
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;");
 }
-
-// ── PWA Install Button ──────────────────────────────────────
-let installPrompt = null;
-
-window.addEventListener("beforeinstallprompt", e => {
-    e.preventDefault();
-    installPrompt = e;
-
-    // Show install button in sidebar footer
-    const btn = document.getElementById("installBtn");
-    if (btn) btn.style.display = "flex";
-});
-
-document.getElementById("installBtn")?.addEventListener("click", async () => {
-    if (!installPrompt) return;
-    installPrompt.prompt();
-    const { outcome } = await installPrompt.userChoice;
-    if (outcome === "accepted") {
-        document.getElementById("installBtn").style.display = "none";
-        installPrompt = null;
-    }
-});
-
-window.addEventListener("appinstalled", () => {
-    const btn = document.getElementById("installBtn");
-    if (btn) btn.style.display = "none";
-    showToast("SnipAI installed! ✅");
-});
 
 // ── Init ───────────────────────────────────────────────────
 initMonaco(async () => {

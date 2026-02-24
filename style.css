@@ -18,7 +18,6 @@
     --danger: #ef4444;
     --success: #22c55e;
     --ai: #a78bfa;
-    --ai-dim: #7c3aed;
     --radius: 8px;
     --sidebar-w: 280px;
 }
@@ -133,6 +132,21 @@ body {
     color: var(--muted);
     text-align: center;
     font-size: 13px;
+}
+
+/* ── Install Button ────────────────────────────────────── */
+.install-wrap {
+    padding: 12px;
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.install-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
 }
 
 /* ── Main ──────────────────────────────────────────────── */
@@ -332,7 +346,6 @@ body {
     color: var(--ai);
 }
 
-/* Spinner animation */
 .ai-spinner {
     width: 14px;
     height: 14px;
@@ -429,7 +442,6 @@ body {
     color: var(--danger);
 }
 
-/* ── AI Button ─────────────────────────────────────────── */
 .btn-ai {
     background: rgba(167, 139, 250, 0.1);
     border: 1px solid rgba(167, 139, 250, 0.3);
@@ -570,8 +582,6 @@ body {
     .snippet-title-display {
         font-size: 13px;
     }
-
-    /* On mobile hide less important toolbar items to save space */
     .btn {
         padding: 6px 10px;
         font-size: 12px;
@@ -579,24 +589,8 @@ body {
     .autosave-status {
         display: none;
     }
-
-    /* Hide Copy and Delete on mobile toolbar — accessible via Edit flow */
     #copyBtn,
     #deleteBtn {
         display: none;
     }
-}
-
-/* ── Install Button ────────────────────────────────────── */
-.install-wrap {
-    padding: 12px;
-    border-top: 1px solid var(--border);
-    margin-top: auto;
-}
-
-.install-btn {
-    width: 100%;
-    justify-content: center;
-    display: flex;
-    gap: 6px;
 }

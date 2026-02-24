@@ -10,7 +10,7 @@
 
         <!-- PWA -->
         <link rel="manifest" href="/manifest.json" />
-        <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
+        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
 
         <link rel="stylesheet" href="style.css" />
         <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
@@ -55,7 +55,8 @@
             <ul class="snippet-list" id="snippetList">
                 <li class="empty-state">No snippets yet. Create one!</li>
             </ul>
-            <!-- Install button — hidden until PWA prompt is available -->
+
+            <!-- Install button — shown only when PWA prompt is available -->
             <div class="install-wrap" id="installBtn" style="display: none">
                 <button class="btn btn-primary install-btn">
                     ⬇ Install SnipAI
@@ -197,7 +198,6 @@
         <div class="toast" id="toast"></div>
 
         <script>
-            // Register service worker
             if ("serviceWorker" in navigator) {
                 window.addEventListener("load", () => {
                     navigator.serviceWorker
