@@ -559,6 +559,34 @@ function escHtml(str) {
         .replace(/>/g, "&gt;");
 }
 
+// ── PWA Install Button ──────────────────────────────────────
+let installPrompt = null;
+
+window.addEventListener("beforeinstallprompt", e => {
+    e.preventDefault();
+    installPrompt = e;
+
+    // Show install button in sidebar footer
+    const btn = document.getElementById("installBtn");
+    if (btn) btn.style.display = "flex";
+});
+
+document.getElementById("installBtn")?.addEventListener("click", async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === "accepted") {
+        document.getElementById("installBtn").style.display = "none";
+        installPrompt = null;
+    }
+});
+
+window.addEventListener("appinstalled", () => {
+    const btn = document.getElementById("installBtn");
+    if (btn) btn.style.display = "none";
+    showToast("SnipAI installed! ✅");
+});
+
 // ── Init ───────────────────────────────────────────────────
 initMonaco(async () => {
     attachAutosaveListeners();

@@ -586,3 +586,17 @@ body {
         display: none;
     }
 }
+
+/* ── Install Button ────────────────────────────────────── */
+.install-wrap {
+    padding: 12px;
+    border-top: 1px solid var(--border);
+    margin-top: auto;
+}
+
+.install-btn {
+    width: 100%;
+    justify-content: center;
+    display: flex;
+    gap: 6px;
+}
