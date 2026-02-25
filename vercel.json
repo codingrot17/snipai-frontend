@@ -1,19 +1,48 @@
 {
   "outputDirectory": ".",
-  "headers": [
+  "routes": [{
+    "src": "/app",
+    "dest": "/index.html"
+  },
     {
-      "source": "/sw.js",
-      "headers": [
-        { "key": "Content-Type",          "value": "application/javascript" },
-        { "key": "Service-Worker-Allowed","value": "/" },
-        { "key": "Cache-Control",         "value": "no-cache" }
-      ]
+      "src": "/app/(.*)",
+      "dest": "/index.html"
     },
     {
+      "src": "/",
+      "dest": "/landing.html"
+    }],
+  "headers": [{
+    "source": "/sw.js",
+    "headers": [{
+      "key": "Content-Type",
+      "value": "application/javascript"
+    },
+      {
+        "key": "Service-Worker-Allowed",
+        "value": "/"
+      },
+      {
+        "key": "Cache-Control",
+        "value": "no-cache"
+      }]
+  },
+    {
       "source": "/manifest.json",
-      "headers": [
-        { "key": "Content-Type", "value": "application/manifest+json" }
-      ]
-    }
-  ]
+      "headers": [{
+        "key": "Content-Type",
+        "value": "application/manifest+json"
+      }]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [{
+        "key": "X-Content-Type-Options",
+        "value": "nosniff"
+      },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        }]
+    }]
 }

@@ -1,20 +1,19 @@
 {
-  "name": "SnipAI — Code Snippet Manager",
+  "name": "SnipAI \u2014 Code Snippet Manager",
   "short_name": "SnipAI",
   "description": "AI-powered code snippet manager. Save, search and understand your code.",
-  "start_url": "/",
+  "start_url": "/app",
   "scope": "/",
   "display": "standalone",
   "background_color": "#0f1117",
   "theme_color": "#7c6af7",
   "orientation": "any",
-  "icons": [
-    {
-      "src": "/icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
+  "icons": [{
+    "src": "/icons/icon-192.png",
+    "sizes": "192x192",
+    "type": "image/png",
+    "purpose": "any"
+  },
     {
       "src": "/icons/icon-192.png",
       "sizes": "192x192",
@@ -32,6 +31,5 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
-    }
-  ]
+    }]
 }
