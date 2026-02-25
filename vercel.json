@@ -1,21 +1,12 @@
 {
   "rewrites": [{
     "source": "/app",
-    "destination": "/index.html"
+    "destination": "/app.html"
   },
     {
       "source": "/app/(.*)",
-      "destination": "/index.html"
+      "destination": "/app.html"
     }],
-  "redirects": [{
-    "source": "/",
-    "has": [{
-      "type": "cookie",
-      "key": "snipai_user"
-    }],
-    "destination": "/app",
-    "permanent": false
-  }],
   "headers": [{
     "source": "/sw.js",
     "headers": [{

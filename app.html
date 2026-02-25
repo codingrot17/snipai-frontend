@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script>
+    // If user arrives at /app with no session, go to landing page
+    // If user arrives at / with a session, go to app
+    (function() {
+      var path = window.location.pathname;
+      var hasUser = !!localStorage.getItem('snipai_user');
+      if (path === '/' && hasUser) {
+        window.location.replace('/app');
+      }
+    })();
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="AI-powered code snippet manager" />
+  <meta name="theme-color" content="#7c6af7" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="SnipAI" />
+  <title>SnipAI - Code Snippet Manager</title>
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <link rel="icon" type="image/png" href="/icons/icon-192.png" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="auth.css" />
+  <link rel="stylesheet" href="explore.css" />
+  <script src="https://cdn.jsdelivr.net/npm/appwrite@16/dist/iife/sdk.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════
+     AUTH SCREEN
+══════════════════════════════════════════════════════ -->
+<div class="auth-screen" id="authScreen">
+
+  <!-- Left panel (desktop only) -->
+  <div class="auth-panel-left">
+    <div class="auth-grid-bg"></div>
+    <div class="auth-orb auth-orb-1"></div>
+    <div class="auth-orb auth-orb-2"></div>
+
+    <div class="auth-panel-left-content">
+      <div class="auth-brand">⚡ Snip<span>AI</span></div>
+      <div class="auth-tagline-large">
+        Manage code.<br>
+        <em>Understand it.</em>
+      </div>
+      <ul class="auth-features">
+        <li>AI-powered snippet tagging and explanation</li>
+        <li>Private by default — share only what you want</li>
+        <li>Search across all your snippets instantly</li>
+        <li>Works offline as an installable PWA</li>
+        <li>Your Groq key, your AI — no vendor lock-in</li>
+      </ul>
+    </div>
+
+    <!-- Floating code preview card -->
+    <div class="auth-code-preview">
+      <div class="cp-header">
+        <div class="dot dot-r"></div>
+        <div class="dot dot-y"></div>
+        <div class="dot dot-g"></div>
+        <span style="margin-left:6px;font-size:10px;color:#546e7a">fetchUser.js</span>
+      </div>
+      <span class="cp-line"><span class="cp-cm">// AI analyzed: async fetch utility</span></span>
+      <span class="cp-line"><span class="cp-kw">async function</span> <span class="cp-fn">fetchUser</span>(id) {</span>
+      <span class="cp-line">  <span class="cp-kw">const</span> res = <span class="cp-kw">await</span> fetch(</span>
+      <span class="cp-line">    <span class="cp-str">`/api/users/<span class="cp-num">${id}</span>`</span></span>
+      <span class="cp-line">  );</span>
+      <span class="cp-line">  <span class="cp-kw">if</span> (!res.ok) <span class="cp-kw">throw new</span> <span class="cp-fn">Error</span>(res.status);</span>
+      <span class="cp-line">  <span class="cp-kw">return</span> res.<span class="cp-fn">json</span>();</span>
+      <span class="cp-line">}</span>
+    </div>
+  </div>
+
+  <!-- Right panel — form -->
+  <div class="auth-panel-right">
+    <div class="auth-card">
+
+      <!-- Mobile brand -->
+      <div class="auth-mobile-brand">⚡ Snip<span>AI</span></div>
+      <div class="auth-mobile-sub">AI-powered code snippet manager</div>
+
+      <!-- Tab switcher -->
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-tab="login">Sign In</button>
+        <button class="auth-tab" data-tab="register">Register</button>
+      </div>
+
+      <!-- ── LOGIN FORM ───────────────────────────────── -->
+      <div class="auth-form" id="loginForm">
+
+        <!-- Social -->
+        <div class="auth-social-row">
+          <button class="auth-social-btn" id="googleLoginBtn" type="button">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg>
+            Google
+          </button>
+          <button class="auth-social-btn" id="githubLoginBtn" type="button">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+            </svg>
+            GitHub
+          </button>
+        </div>
+
+        <div class="auth-divider">or continue with email</div>
+
+        <div class="auth-field">
+          <label for="loginEmail">Email</label>
+          <div class="auth-input-wrap">
+            <span class="auth-input-icon">✉</span>
+            <input class="auth-input" type="email" id="loginEmail"
+              placeholder="you@example.com" autocomplete="email" />
+          </div>
+        </div>
+
+        <div class="auth-field">
+          <label for="loginPassword">Password</label>
+          <div class="auth-input-wrap">
+            <span class="auth-input-icon">🔒</span>
+            <input class="auth-input" type="password" id="loginPassword"
+              placeholder="Your password" autocomplete="current-password" />
+            <button class="auth-eye" type="button" data-target="loginPassword" title="Show/hide">👁</button>
+          </div>
+        </div>
+
+        <button class="auth-submit" id="loginBtn" type="button">Sign In</button>
+        <p class="auth-error" id="loginError"></p>
+      </div>
+
+      <!-- ── REGISTER FORM ─────────────────────────────── -->
+      <div class="auth-form" id="registerForm" style="display:none">
+
+        <!-- Social -->
+        <div class="auth-social-row">
+          <button class="auth-social-btn" id="googleRegBtn" type="button">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg>
+            Google
+          </button>
+          <button class="auth-social-btn" id="githubRegBtn" type="button">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+            </svg>
+            GitHub
+          </button>
+        </div>
+
+        <div class="auth-divider">or register with email</div>
+
+        <div class="auth-field">
+          <label for="regName">Full Name</label>
+          <div class="auth-input-wrap">
+            <span class="auth-input-icon">👤</span>
+            <input class="auth-input" type="text" id="regName"
+              placeholder="John Doe" autocomplete="name" />
+          </div>
+        </div>
+
+        <div class="auth-field">
+          <label for="regEmail">Email</label>
+          <div class="auth-input-wrap">
+            <span class="auth-input-icon">✉</span>
+            <input class="auth-input" type="email" id="regEmail"
+              placeholder="you@example.com" autocomplete="email" />
+          </div>
+        </div>
+
+        <div class="auth-field">
+          <label for="regPassword">Password</label>
+          <div class="auth-input-wrap">
+            <span class="auth-input-icon">🔒</span>
+            <input class="auth-input" type="password" id="regPassword"
+              placeholder="Min 8 characters" autocomplete="new-password" />
+            <button class="auth-eye" type="button" data-target="regPassword" title="Show/hide">👁</button>
+          </div>
+          <div class="pw-strength" id="pwStrength">
+            <div class="pw-strength-bar" id="pwStrengthBar"></div>
+          </div>
+        </div>
+
+        <div class="auth-field">
+          <label for="regConfirm">Confirm Password</label>
+          <div class="auth-input-wrap">
+            <span class="auth-input-icon">🔒</span>
+            <input class="auth-input" type="password" id="regConfirm"
+              placeholder="Repeat password" autocomplete="new-password" />
+          </div>
+        </div>
+
+        <button class="auth-submit" id="registerBtn" type="button">Create Account</button>
+        <p class="auth-error" id="registerError"></p>
+
+        <p class="auth-footer-note">
+          By creating an account you agree to our
+          <a href="#" onclick="return false">Terms of Service</a>
+        </p>
+      </div>
+
+    </div><!-- end auth-card -->
+  </div><!-- end auth-panel-right -->
+</div><!-- end auth-screen -->
+
+<!-- ══════════════════════════════════════════════════════
+     SETTINGS MODAL
+══════════════════════════════════════════════════════ -->
+<div class="modal-backdrop" id="settingsBackdrop" style="display:none">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span>&#9881; Settings</span>
+      <button class="btn-icon" id="closeSettings">&#x2715;</button>
+    </div>
+    <div class="settings-section">
+      <label class="settings-label">Account</label>
+      <div class="settings-user" id="settingsUser"></div>
+      <button class="btn btn-danger settings-logout" id="logoutBtn">Sign Out</button>
+    </div>
+    <div class="settings-section">
+      <label class="settings-label">
+        ✦ Groq API Key
+        <span class="settings-hint">Required for AI features</span>
+      </label>
+      <div class="groq-key-wrap">
+        <input class="auth-input" type="password" id="groqKeyInput" placeholder="gsk_xxxxxxxxxxxxxxxx" style="padding-left:14px" />
+        <button class="btn btn-primary" id="saveGroqKey">Save</button>
+      </div>
+      <p class="settings-note">
+        Get a free key at <a href="https://console.groq.com" target="_blank">console.groq.com</a>.
+        Synced securely to your account.
+      </p>
+      <p class="groq-status" id="groqStatus"></p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     MAIN APP SHELL
+══════════════════════════════════════════════════════ -->
+<div class="app-shell" id="appShell" style="display:none">
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <span class="logo">&#x26A1; SnipAI</span>
+      <div class="sidebar-header-actions">
+        <button class="btn-icon" id="settingsBtn" title="Settings">&#9881;</button>
+        <button class="btn-icon" id="newSnippetBtn" title="New Snippet">&#xff0b;</button>
+      </div>
+    </div>
+    <div class="user-bar" id="userBar"></div>
+
+    <!-- Sidebar nav tabs -->
+    <div class="sidebar-nav">
+      <button class="sidebar-nav-btn active" id="navMine" data-pane="mine">
+        &#128196; My Snippets
+      </button>
+      <button class="sidebar-nav-btn" id="navExplore" data-pane="explore">
+        &#127760; Explore
+      </button>
+    </div>
+
+    <!-- My Snippets pane -->
+    <div id="sidebarMinePane" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+      <div class="search-wrap">
+        <input type="text" id="searchInput" placeholder="Search snippets..." autocomplete="off" />
+      </div>
+      <div class="filter-wrap">
+        <select id="langFilter">
+          <option value="">All Languages</option>
+          <option value="javascript">JavaScript</option>
+          <option value="typescript">TypeScript</option>
+          <option value="python">Python</option>
+          <option value="html">HTML</option>
+          <option value="css">CSS</option>
+          <option value="json">JSON</option>
+          <option value="bash">Bash</option>
+          <option value="sql">SQL</option>
+          <option value="plaintext">Plain Text</option>
+        </select>
+      </div>
+      <ul class="snippet-list" id="snippetList">
+        <li class="empty-state">No snippets yet. Create one!</li>
+      </ul>
+    </div>
+
+    <!-- Explore pane (inside sidebar — filter chips) -->
+    <div id="sidebarExplorePane" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+      <div class="ex-filters-wrap">
+        <div class="ex-filters" id="exploreFilters">
+          <button class="ex-chip active" data-lang="">All</button>
+          <button class="ex-chip" data-lang="javascript">JavaScript</button>
+          <button class="ex-chip" data-lang="typescript">TypeScript</button>
+          <button class="ex-chip" data-lang="python">Python</button>
+          <button class="ex-chip" data-lang="html">HTML</button>
+          <button class="ex-chip" data-lang="css">CSS</button>
+          <button class="ex-chip" data-lang="bash">Bash</button>
+          <button class="ex-chip" data-lang="sql">SQL</button>
+          <button class="ex-chip" data-lang="json">JSON</button>
+        </div>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:10px 12px">
+        <p style="font-size:12px;color:var(--muted);text-align:center;padding:12px 0">
+          Open Explore to browse public snippets
+        </p>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main" id="main">
+    <header class="toolbar">
+      <div class="toolbar-left">
+        <button class="btn-icon" id="sidebarToggle">&#9776;</button>
+        <span class="snippet-title-display" id="snippetTitleDisplay">Select a snippet</span>
+      </div>
+      <div class="toolbar-right" id="toolbarView" style="display:none">
+        <span class="lang-badge" id="langBadge"></span>
+        <span class="visibility-badge" id="visibilityBadge"></span>
+        <button class="btn btn-ghost"  id="copyBtn">Copy</button>
+        <button class="btn btn-ai"     id="explainBtn">&#10022; Explain</button>
+        <button class="btn btn-ghost"  id="editBtn">Edit</button>
+        <button class="btn btn-danger" id="deleteBtn">Delete</button>
+        <!-- Mobile: replaces all above buttons -->
+        <button class="btn-icon" id="moreActionsBtn" title="More actions">&#8942;</button>
+      </div>
+      <div class="toolbar-right" id="toolbarForm" style="display:none">
+        <span class="autosave-status" id="autosaveStatus"></span>
+        <button class="btn btn-ai"      id="analyzeBtn" type="button">&#10022; AI Fill</button>
+        <button class="btn btn-ghost"   id="cancelBtn"  type="button">Cancel</button>
+        <button class="btn btn-primary" id="saveBtn"    type="button">Save</button>
+      </div>
+    </header>
+
+    <section class="panel" id="viewPanel">
+      <div class="welcome" id="welcomeMsg">
+        <p>&#x26A1; Welcome to <strong>SnipAI</strong></p>
+        <p>Paste code, let AI tag and explain it for you.</p>
+        <button class="btn btn-primary" id="welcomeNewBtn">Create your first snippet</button>
+      </div>
+      <div class="snippet-detail" id="snippetDetail" style="display:none">
+        <p class="snippet-desc" id="snippetDesc"></p>
+        <div class="tags-wrap" id="tagsWrap"></div>
+        <div id="viewEditor" class="editor-wrap"></div>
+        <div class="explain-panel" id="explainPanel" style="display:none">
+          <div class="explain-header">
+            <span>&#10022; AI Explanation</span>
+            <button class="btn-icon" id="closeExplainBtn">&#x2715;</button>
+          </div>
+          <p class="explain-text" id="explainText"></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="formPanel" style="display:none">
+      <form class="snippet-form" id="snippetForm" onsubmit="return false">
+        <div class="ai-status" id="aiStatus" style="display:none">
+          <span class="ai-spinner"></span>
+          <span id="aiStatusText">AI is analyzing your code...</span>
+        </div>
+        <div class="form-row">
+          <input type="text" id="formTitle" placeholder="Snippet title..." />
+        </div>
+        <div class="form-row two-col">
+          <select id="formLang">
+            <option value="javascript">JavaScript</option>
+            <option value="typescript">TypeScript</option>
+            <option value="python">Python</option>
+            <option value="html">HTML</option>
+            <option value="css">CSS</option>
+            <option value="json">JSON</option>
+            <option value="bash">Bash</option>
+            <option value="sql">SQL</option>
+            <option value="plaintext">Plain Text</option>
+          </select>
+          <input type="text" id="formTags" placeholder="Tags: fetch, async, api" />
+        </div>
+        <div class="form-row">
+          <input type="text" id="formDesc" placeholder="Short description (optional)" />
+        </div>
+        <div class="form-row visibility-row">
+          <label class="toggle-wrap">
+            <input type="checkbox" id="formPublic" />
+            <span class="toggle-slider"></span>
+            <span class="toggle-label">Make public</span>
+          </label>
+          <span class="visibility-hint" id="visibilityHint">Only you can see this</span>
+        </div>
+        <div id="formEditor" class="editor-wrap"></div>
+      </form>
+    </section>
+  <!-- ── Explore View (main panel) ──────────────────────── -->
+  <div id="exploreView" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+    <div class="ex-header">
+      <span class="ex-header-title">&#127760; Explore Public Snippets</span>
+      <span class="ex-header-sub" id="exploreSubtitle">Discover code from the community</span>
+    </div>
+    <div class="ex-grid-wrap">
+      <div class="ex-grid" id="exploreGrid"></div>
+      <div class="ex-loader" id="exploreLoader">
+        <div class="ex-spinner"></div>
+        <span>Loading snippets...</span>
+      </div>
+      <button class="ex-more-btn" id="exploreMore">Load more</button>
+    </div>
+  </div>
+
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ── Bottom Action Sheet (mobile snippet actions) ──── -->
+<div class="action-sheet-backdrop" id="actionSheetBackdrop"></div>
+<div class="action-sheet" id="actionSheet">
+  <div class="action-sheet-handle"></div>
+  <div class="action-sheet-title" id="actionSheetTitle">Snippet actions</div>
+  <button class="sheet-btn" id="sheetCopyBtn">
+    <div class="sheet-btn-icon copy">&#128203;</div>
+    Copy code
+  </button>
+  <button class="sheet-btn primary" id="sheetExplainBtn">
+    <div class="sheet-btn-icon explain">&#10022;</div>
+    Explain with AI
+  </button>
+  <button class="sheet-btn" id="sheetEditBtn">
+    <div class="sheet-btn-icon edit">&#9998;</div>
+    Edit snippet
+  </button>
+  <button class="sheet-btn danger" id="sheetDeleteBtn">
+    <div class="sheet-btn-icon">&#128465;</div>
+    Delete snippet
+  </button>
+</div>
+
+<script src="appwrite.js"></script>
+<script src="auth.js"></script>
+<script src="explore.js"></script>
+<script src="app.js"></script>
+<script>
+  // SW registration with auto-update — new deploys reload automatically
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', async () => {
+      try {
+        const reg = await navigator.serviceWorker.register('/sw.js');
+        reg.update();
+        reg.addEventListener('updatefound', () => {
+          const newSW = reg.installing;
+          newSW.addEventListener('statechange', () => {
+            if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+              newSW.postMessage('SKIP_WAITING');
+            }
+          });
+        });
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (!refreshing) { refreshing = true; window.location.reload(); }
+        });
+      } catch(e) { console.warn('SW:', e); }
+    });
+  }
+  window.addEventListener('load', () => window.initApp());
+</script>
+</body>
+</html>

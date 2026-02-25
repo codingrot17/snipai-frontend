@@ -1,465 +1,1130 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="AI-powered code snippet manager" />
-  <meta name="theme-color" content="#7c6af7" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="SnipAI" />
-  <title>SnipAI - Code Snippet Manager</title>
-  <link rel="manifest" href="/manifest.json" />
-  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-  <link rel="icon" type="image/png" href="/icons/icon-192.png" />
-  <link rel="stylesheet" href="style.css" />
-  <link rel="stylesheet" href="auth.css" />
-  <link rel="stylesheet" href="explore.css" />
-  <script src="https://cdn.jsdelivr.net/npm/appwrite@16/dist/iife/sdk.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <meta name="description" content="SnipAI — Save, organize, and understand your code snippets with AI. Free forever."/>
+  <meta name="theme-color" content="#4f46e5"/>
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="SnipAI — AI-Powered Code Snippet Manager"/>
+  <meta property="og:description" content="Paste code. AI names it, tags it, and explains it instantly. Free forever."/>
+  <meta property="og:type" content="website"/>
+  <meta property="og:image" content="/icons/og-image.png"/>
+  <meta name="twitter:card" content="summary_large_image"/>
+
+  <title>SnipAI — AI-Powered Code Snippet Manager</title>
+  <link rel="icon" type="image/png" href="/icons/icon-192.png"/>
+  <link rel="manifest" href="/manifest.json"/>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Fira+Code:wght@400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+
+  <style>
+/* ═══════════════════════════════════════════════════════════
+   RESET & TOKENS
+═══════════════════════════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:       #09090f;
+  --surface:  #111118;
+  --surface2: #18181f;
+  --border:   rgba(255,255,255,0.07);
+  --accent:   #4f46e5;
+  --accent2:  #818cf8;
+  --text:     #f1f0ff;
+  --muted:    #71717a;
+  --success:  #22c55e;
+  --code-bg:  #0d0d14;
+  --radius:   10px;
+}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'DM Sans',sans-serif;
+  font-size:16px;
+  line-height:1.6;
+  overflow-x:hidden;
+}
+a{color:inherit;text-decoration:none}
+img{display:block;max-width:100%}
+button{cursor:pointer;font-family:inherit}
+
+/* ═══════════════════════════════════════════════════════════
+   NOISE OVERLAY
+═══════════════════════════════════════════════════════════ */
+body::before{
+  content:'';
+  position:fixed;
+  inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  background-size:200px 200px;
+  pointer-events:none;
+  z-index:0;
+  opacity:0.4;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   GRID BACKGROUND
+═══════════════════════════════════════════════════════════ */
+.grid-bg{
+  position:absolute;
+  inset:0;
+  background-image:
+    linear-gradient(rgba(79,70,229,0.05) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(79,70,229,0.05) 1px,transparent 1px);
+  background-size:48px 48px;
+  pointer-events:none;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   NAV
+═══════════════════════════════════════════════════════════ */
+.nav{
+  position:fixed;top:0;left:0;right:0;
+  z-index:100;
+  padding:0 5vw;
+  height:64px;
+  display:flex;align-items:center;justify-content:space-between;
+  background:rgba(9,9,15,0.8);
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--border);
+  animation:fade-down 0.5s ease both;
+}
+.nav-logo{
+  font-family:'Syne',sans-serif;
+  font-size:20px;font-weight:800;
+  letter-spacing:-0.5px;
+  display:flex;align-items:center;gap:8px;
+}
+.nav-logo-bolt{color:var(--accent2);font-size:22px}
+.nav-links{display:flex;align-items:center;gap:24px;font-size:14px;font-weight:500}
+.nav-links a{color:var(--muted);transition:color 0.2s}
+.nav-links a:hover{color:var(--text)}
+.nav-cta{
+  background:var(--accent);
+  color:#fff;
+  padding:8px 22px;
+  border-radius:var(--radius);
+  font-size:14px;font-weight:600;
+  border:none;
+  transition:all 0.2s;
+  box-shadow:0 0 24px rgba(79,70,229,0.3);
+}
+.nav-cta:hover{background:#4338ca;box-shadow:0 0 32px rgba(79,70,229,0.5);transform:translateY(-1px)}
+.nav-mobile-cta{display:none}
+
+@media(max-width:640px){
+  .nav-links{display:none}
+  .nav-cta{display:none}
+  .nav-mobile-cta{
+    display:block;
+    background:var(--accent);color:#fff;
+    padding:7px 16px;border-radius:var(--radius);
+    font-size:13px;font-weight:600;border:none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   HERO
+═══════════════════════════════════════════════════════════ */
+.hero{
+  position:relative;
+  min-height:100vh;
+  padding:120px 5vw 80px;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  overflow:hidden;
+  text-align:center;
+}
+
+/* Radial glow behind headline */
+.hero-glow{
+  position:absolute;
+  top:30%;left:50%;
+  transform:translate(-50%,-50%);
+  width:700px;height:500px;
+  background:radial-gradient(ellipse,rgba(79,70,229,0.18) 0%,transparent 70%);
+  pointer-events:none;
+}
+
+.hero-eyebrow{
+  display:inline-flex;align-items:center;gap:8px;
+  background:rgba(79,70,229,0.12);
+  border:1px solid rgba(79,70,229,0.25);
+  border-radius:40px;
+  padding:6px 16px;
+  font-size:12px;font-weight:600;
+  color:var(--accent2);
+  letter-spacing:0.8px;
+  text-transform:uppercase;
+  margin-bottom:28px;
+  animation:fade-up 0.5s 0.1s ease both;
+}
+.hero-eyebrow-dot{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--accent2);
+  animation:pulse-dot 2s ease-in-out infinite;
+}
+
+.hero-headline{
+  font-family:'Syne',sans-serif;
+  font-size:clamp(42px,8vw,92px);
+  font-weight:800;
+  line-height:1.0;
+  letter-spacing:-3px;
+  color:var(--text);
+  max-width:900px;
+  margin-bottom:24px;
+  animation:fade-up 0.5s 0.2s ease both;
+}
+.hero-headline em{
+  font-style:normal;
+  background:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 50%,#c4b5fd 100%);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+
+.hero-sub{
+  font-size:clamp(16px,2.5vw,20px);
+  color:var(--muted);
+  max-width:560px;
+  margin:0 auto 40px;
+  font-weight:300;
+  line-height:1.65;
+  animation:fade-up 0.5s 0.3s ease both;
+}
+
+.hero-actions{
+  display:flex;align-items:center;gap:14px;
+  flex-wrap:wrap;justify-content:center;
+  margin-bottom:72px;
+  animation:fade-up 0.5s 0.4s ease both;
+}
+.btn-primary-lg{
+  background:var(--accent);color:#fff;
+  padding:14px 36px;border-radius:var(--radius);
+  font-size:16px;font-weight:600;border:none;
+  box-shadow:0 4px 32px rgba(79,70,229,0.4);
+  transition:all 0.2s;
+  position:relative;overflow:hidden;
+}
+.btn-primary-lg::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,0.12) 0%,transparent 60%);
+  pointer-events:none;
+}
+.btn-primary-lg:hover{background:#4338ca;transform:translateY(-2px);box-shadow:0 8px 40px rgba(79,70,229,0.5)}
+.btn-ghost-lg{
+  background:transparent;
+  border:1px solid var(--border);
+  color:var(--text);
+  padding:14px 32px;border-radius:var(--radius);
+  font-size:16px;font-weight:500;
+  transition:all 0.2s;
+}
+.btn-ghost-lg:hover{border-color:var(--accent2);color:var(--accent2);background:rgba(79,70,229,0.06)}
+
+.hero-meta{
+  display:flex;align-items:center;gap:20px;
+  font-size:13px;color:var(--muted);
+  flex-wrap:wrap;justify-content:center;
+}
+.hero-meta-item{display:flex;align-items:center;gap:6px}
+.hero-meta-item svg{opacity:0.6}
+
+/* ── Terminal demo ─────────────────────────────────────── */
+.terminal-wrap{
+  width:100%;max-width:760px;
+  margin:0 auto;
+  animation:fade-up 0.6s 0.5s ease both;
+  position:relative;
+  z-index:1;
+}
+
+.terminal{
+  background:var(--code-bg);
+  border:1px solid var(--border);
+  border-radius:14px;
+  overflow:hidden;
+  box-shadow:
+    0 0 0 1px rgba(79,70,229,0.1),
+    0 32px 80px rgba(0,0,0,0.7),
+    0 0 60px rgba(79,70,229,0.08);
+}
+
+.terminal-bar{
+  padding:14px 16px;
+  background:rgba(255,255,255,0.03);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;
+}
+.t-dot{width:12px;height:12px;border-radius:50%}
+.t-dot-r{background:#ff5f57}
+.t-dot-y{background:#febc2e}
+.t-dot-g{background:#28c840}
+.terminal-title{
+  margin-left:8px;
+  font-size:12px;color:var(--muted);
+  font-family:'Fira Code',monospace;
+}
+
+.terminal-body{
+  padding:20px 22px;
+  font-family:'Fira Code',monospace;
+  font-size:13px;
+  line-height:1.8;
+  min-height:280px;
+  text-align:left;
+}
+
+.t-line{display:block;margin-bottom:2px}
+.t-prompt{color:#4ade80}
+.t-cmd{color:#e2e8f0}
+.t-comment{color:#4a5568}
+.t-kw{color:#c792ea}
+.t-fn{color:#82aaff}
+.t-str{color:#c3e88d}
+.t-num{color:#f78c6c}
+.t-key{color:var(--accent2)}
+.t-val{color:#c3e88d}
+.t-muted{color:#4a5568}
+.t-ai{color:#818cf8}
+.t-success{color:#4ade80}
+
+.t-cursor{
+  display:inline-block;
+  width:8px;height:14px;
+  background:var(--accent2);
+  vertical-align:middle;
+  margin-left:2px;
+  animation:blink 1s step-end infinite;
+}
+
+/* ── Floating pill badges ──────────────────────────────── */
+.badge-float{
+  position:absolute;
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-radius:40px;
+  padding:8px 14px;
+  font-size:12px;font-weight:600;
+  white-space:nowrap;
+  box-shadow:0 8px 24px rgba(0,0,0,0.4);
+  animation:badge-float-anim 4s ease-in-out infinite;
+}
+.badge-1{
+  top:22%;left:-5%;
+  color:var(--success);
+  border-color:rgba(34,197,94,0.2);
+  animation-delay:0s;
+}
+.badge-2{
+  top:55%;right:-4%;
+  color:var(--accent2);
+  border-color:rgba(129,140,248,0.2);
+  animation-delay:1.5s;
+}
+.badge-3{
+  bottom:15%;left:2%;
+  color:#f59e0b;
+  border-color:rgba(245,158,11,0.2);
+  animation-delay:0.8s;
+}
+
+@media(max-width:768px){.badge-float{display:none}}
+
+/* ═══════════════════════════════════════════════════════════
+   STORY SECTION
+═══════════════════════════════════════════════════════════ */
+.story{
+  position:relative;
+  padding:120px 5vw;
+  overflow:hidden;
+}
+.story-inner{
+  max-width:1100px;margin:0 auto;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:80px;
+  align-items:center;
+}
+@media(max-width:768px){.story-inner{grid-template-columns:1fr;gap:48px}}
+
+.story-label{
+  font-size:11px;font-weight:700;letter-spacing:1.5px;
+  text-transform:uppercase;color:var(--accent2);
+  margin-bottom:16px;
+}
+.story-headline{
+  font-family:'Syne',sans-serif;
+  font-size:clamp(30px,4vw,52px);
+  font-weight:800;letter-spacing:-2px;
+  line-height:1.05;
+  margin-bottom:20px;
+}
+.story-headline span{color:var(--accent2)}
+.story-body{
+  color:var(--muted);
+  font-size:15px;line-height:1.8;
+  font-weight:300;
+}
+.story-body p+p{margin-top:14px}
+
+.story-stack{
+  display:flex;flex-direction:column;gap:12px;
+  margin-top:32px;
+}
+.stack-item{
+  display:flex;align-items:center;gap:14px;
+  padding:14px 16px;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  font-size:13px;font-weight:500;
+  transition:border-color 0.2s;
+}
+.stack-item:hover{border-color:rgba(79,70,229,0.3)}
+.stack-icon{
+  width:32px;height:32px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;flex-shrink:0;
+}
+
+.story-visual{
+  position:relative;
+  display:flex;align-items:center;justify-content:center;
+}
+.phone-mock{
+  width:220px;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:36px;
+  padding:16px;
+  box-shadow:0 32px 80px rgba(0,0,0,0.6),0 0 40px rgba(79,70,229,0.1);
+  position:relative;
+  z-index:2;
+}
+.phone-notch{
+  width:60px;height:6px;background:var(--border);
+  border-radius:4px;margin:0 auto 14px;
+}
+.phone-screen{
+  background:var(--code-bg);
+  border-radius:20px;
+  padding:12px;
+  font-family:'Fira Code',monospace;
+  font-size:10px;line-height:1.6;
+  color:#6b7280;
+  min-height:320px;
+  border:1px solid var(--border);
+}
+.phone-screen .ps-header{
+  display:flex;align-items:center;gap:6px;
+  margin-bottom:10px;padding-bottom:8px;
+  border-bottom:1px solid var(--border);
+  font-size:9px;font-weight:700;color:var(--accent2);
+}
+.phone-screen .ps-item{
+  padding:8px;background:rgba(255,255,255,0.02);
+  border-radius:6px;margin-bottom:6px;
+  border-left:2px solid var(--accent);
+}
+.phone-screen .ps-item-title{color:#e2e8f0;font-size:10px;font-weight:600;margin-bottom:2px}
+.phone-screen .ps-item-meta{color:#4a5568;font-size:9px}
+
+.phone-glow{
+  position:absolute;
+  width:300px;height:300px;
+  background:radial-gradient(circle,rgba(79,70,229,0.2) 0%,transparent 70%);
+  border-radius:50%;
+  top:50%;left:50%;transform:translate(-50%,-50%);
+  pointer-events:none;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FEATURES
+═══════════════════════════════════════════════════════════ */
+.features{
+  padding:100px 5vw;
+  position:relative;
+}
+.features::before{
+  content:'';position:absolute;
+  top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(79,70,229,0.3),transparent);
+}
+
+.section-header{text-align:center;margin-bottom:64px}
+.section-tag{
+  font-size:11px;font-weight:700;letter-spacing:1.5px;
+  text-transform:uppercase;color:var(--accent2);margin-bottom:14px;
+}
+.section-title{
+  font-family:'Syne',sans-serif;
+  font-size:clamp(28px,4vw,48px);
+  font-weight:800;letter-spacing:-2px;
+  margin-bottom:14px;
+}
+.section-sub{font-size:16px;color:var(--muted);font-weight:300;max-width:500px;margin:0 auto}
+
+.features-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+  gap:1px;
+  max-width:1100px;margin:0 auto;
+  border:1px solid var(--border);
+  border-radius:16px;
+  overflow:hidden;
+}
+
+.feature-card{
+  padding:36px 32px;
+  background:var(--surface);
+  position:relative;
+  transition:background 0.2s;
+  overflow:hidden;
+}
+.feature-card::after{
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;
+  height:2px;
+  background:linear-gradient(90deg,var(--accent),var(--accent2));
+  transform:scaleX(0);
+  transform-origin:left;
+  transition:transform 0.3s ease;
+}
+.feature-card:hover{background:var(--surface2)}
+.feature-card:hover::after{transform:scaleX(1)}
+
+.feature-icon{
+  width:48px;height:48px;
+  background:rgba(79,70,229,0.1);
+  border:1px solid rgba(79,70,229,0.2);
+  border-radius:12px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;
+  margin-bottom:20px;
+}
+.feature-title{
+  font-family:'Syne',sans-serif;
+  font-size:18px;font-weight:700;
+  margin-bottom:10px;letter-spacing:-0.3px;
+}
+.feature-desc{font-size:14px;color:var(--muted);line-height:1.7;font-weight:300}
+
+/* ═══════════════════════════════════════════════════════════
+   EXPLORE PREVIEW
+═══════════════════════════════════════════════════════════ */
+.explore-preview{
+  padding:100px 5vw;
+  position:relative;
+  overflow:hidden;
+}
+.explore-preview::before{
+  content:'';position:absolute;
+  bottom:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(79,70,229,0.3),transparent);
+}
+
+.ep-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+  gap:16px;
+  max-width:1100px;margin:48px auto 0;
+  position:relative;
+}
+
+/* fade out bottom */
+.ep-grid::after{
+  content:'';position:absolute;
+  bottom:-1px;left:0;right:0;height:160px;
+  background:linear-gradient(to bottom,transparent,var(--bg));
+  pointer-events:none;
+}
+
+.ep-card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:12px;
+  overflow:hidden;
+  display:flex;
+  transition:transform 0.2s,box-shadow 0.2s;
+}
+.ep-card:hover{transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,0.4);border-color:rgba(79,70,229,0.2)}
+.ep-accent{width:3px;flex-shrink:0}
+.ep-inner{padding:16px;flex:1;min-width:0}
+.ep-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.ep-lang{font-family:'Fira Code',monospace;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;border:1px solid}
+.ep-title{font-size:13px;font-weight:600;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ep-desc{font-size:11px;color:var(--muted);margin-bottom:10px}
+.ep-code{
+  background:rgba(0,0,0,0.3);border-radius:6px;
+  padding:8px;font-family:'Fira Code',monospace;font-size:10px;
+  color:#6b7280;line-height:1.6;
+  max-height:80px;overflow:hidden;
+}
+.ep-footer{display:flex;align-items:center;justify-content:space-between;margin-top:10px}
+.ep-author{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
+.ep-av{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff}
+
+/* ═══════════════════════════════════════════════════════════
+   SOCIAL PROOF
+═══════════════════════════════════════════════════════════ */
+.social-proof{
+  padding:80px 5vw;
+  text-align:center;
+}
+.sp-inner{max-width:1100px;margin:0 auto}
+.sp-stats{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:1px;
+  background:var(--border);
+  border:1px solid var(--border);
+  border-radius:16px;
+  overflow:hidden;
+  margin-top:48px;
+}
+@media(max-width:600px){.sp-stats{grid-template-columns:1fr}}
+.sp-stat{
+  background:var(--surface);
+  padding:40px 24px;
+  text-align:center;
+}
+.sp-num{
+  font-family:'Syne',sans-serif;
+  font-size:clamp(36px,6vw,56px);
+  font-weight:800;
+  letter-spacing:-2px;
+  background:linear-gradient(135deg,var(--text),var(--accent2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  margin-bottom:8px;
+}
+.sp-label{font-size:14px;color:var(--muted);font-weight:400}
+
+/* ═══════════════════════════════════════════════════════════
+   CTA
+═══════════════════════════════════════════════════════════ */
+.cta-section{
+  padding:120px 5vw;
+  text-align:center;
+  position:relative;
+  overflow:hidden;
+}
+.cta-glow{
+  position:absolute;
+  top:50%;left:50%;transform:translate(-50%,-50%);
+  width:600px;height:400px;
+  background:radial-gradient(ellipse,rgba(79,70,229,0.2) 0%,transparent 70%);
+  pointer-events:none;
+}
+.cta-headline{
+  font-family:'Syne',sans-serif;
+  font-size:clamp(32px,6vw,72px);
+  font-weight:800;letter-spacing:-3px;
+  line-height:1.05;
+  margin-bottom:20px;
+  position:relative;z-index:1;
+}
+.cta-sub{
+  font-size:18px;color:var(--muted);
+  font-weight:300;margin-bottom:40px;
+  position:relative;z-index:1;
+}
+.cta-actions{
+  display:flex;justify-content:center;gap:14px;flex-wrap:wrap;
+  position:relative;z-index:1;
+}
+.cta-note{
+  margin-top:20px;font-size:13px;color:var(--muted);
+  position:relative;z-index:1;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FOOTER
+═══════════════════════════════════════════════════════════ */
+.footer{
+  padding:40px 5vw;
+  border-top:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;gap:16px;
+}
+.footer-logo{
+  font-family:'Syne',sans-serif;
+  font-size:16px;font-weight:800;
+  display:flex;align-items:center;gap:6px;
+}
+.footer-logo span{color:var(--accent2)}
+.footer-links{display:flex;gap:20px;font-size:13px;color:var(--muted)}
+.footer-links a:hover{color:var(--text)}
+.footer-credit{font-size:12px;color:var(--muted)}
+
+/* ═══════════════════════════════════════════════════════════
+   ANIMATIONS
+═══════════════════════════════════════════════════════════ */
+@keyframes fade-up{
+  from{opacity:0;transform:translateY(20px)}
+  to{opacity:1;transform:translateY(0)}
+}
+@keyframes fade-down{
+  from{opacity:0;transform:translateY(-16px)}
+  to{opacity:1;transform:translateY(0)}
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+@keyframes pulse-dot{
+  0%,100%{box-shadow:0 0 0 0 rgba(129,140,248,0.4)}
+  50%{box-shadow:0 0 0 6px rgba(129,140,248,0)}
+}
+@keyframes badge-float-anim{
+  0%,100%{transform:translateY(0px)}
+  50%{transform:translateY(-10px)}
+}
+@keyframes scroll-reveal{
+  from{opacity:0;transform:translateY(32px)}
+  to{opacity:1;transform:translateY(0)}
+}
+.reveal{
+  opacity:0;transform:translateY(32px);
+  transition:opacity 0.6s ease,transform 0.6s ease;
+}
+.reveal.visible{opacity:1;transform:translateY(0)}
+  </style>
 </head>
 <body>
 
-<!-- ══════════════════════════════════════════════════════
-     AUTH SCREEN
-══════════════════════════════════════════════════════ -->
-<div class="auth-screen" id="authScreen">
+<!-- ── NAV ───────────────────────────────────────────────── -->
+<nav class="nav">
+  <div class="nav-logo">
+    <span class="nav-logo-bolt">⚡</span>
+    SnipAI
+  </div>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#explore">Explore</a>
+    <a href="https://github.com/codingrot17/snipai-frontend/" target="_blank">GitHub</a>
+  </div>
+  <button class="nav-cta" onclick="goToApp()">Start for free →</button>
+  <button class="nav-mobile-cta" onclick="goToApp()">Start free</button>
+</nav>
 
-  <!-- Left panel (desktop only) -->
-  <div class="auth-panel-left">
-    <div class="auth-grid-bg"></div>
-    <div class="auth-orb auth-orb-1"></div>
-    <div class="auth-orb auth-orb-2"></div>
+<!-- ── HERO ──────────────────────────────────────────────── -->
+<section class="hero">
+  <div class="grid-bg"></div>
+  <div class="hero-glow"></div>
 
-    <div class="auth-panel-left-content">
-      <div class="auth-brand">⚡ Snip<span>AI</span></div>
-      <div class="auth-tagline-large">
-        Manage code.<br>
-        <em>Understand it.</em>
-      </div>
-      <ul class="auth-features">
-        <li>AI-powered snippet tagging and explanation</li>
-        <li>Private by default — share only what you want</li>
-        <li>Search across all your snippets instantly</li>
-        <li>Works offline as an installable PWA</li>
-        <li>Your Groq key, your AI — no vendor lock-in</li>
-      </ul>
-    </div>
-
-    <!-- Floating code preview card -->
-    <div class="auth-code-preview">
-      <div class="cp-header">
-        <div class="dot dot-r"></div>
-        <div class="dot dot-y"></div>
-        <div class="dot dot-g"></div>
-        <span style="margin-left:6px;font-size:10px;color:#546e7a">fetchUser.js</span>
-      </div>
-      <span class="cp-line"><span class="cp-cm">// AI analyzed: async fetch utility</span></span>
-      <span class="cp-line"><span class="cp-kw">async function</span> <span class="cp-fn">fetchUser</span>(id) {</span>
-      <span class="cp-line">  <span class="cp-kw">const</span> res = <span class="cp-kw">await</span> fetch(</span>
-      <span class="cp-line">    <span class="cp-str">`/api/users/<span class="cp-num">${id}</span>`</span></span>
-      <span class="cp-line">  );</span>
-      <span class="cp-line">  <span class="cp-kw">if</span> (!res.ok) <span class="cp-kw">throw new</span> <span class="cp-fn">Error</span>(res.status);</span>
-      <span class="cp-line">  <span class="cp-kw">return</span> res.<span class="cp-fn">json</span>();</span>
-      <span class="cp-line">}</span>
-    </div>
+  <div class="hero-eyebrow">
+    <span class="hero-eyebrow-dot"></span>
+    Free forever · No credit card · Instant setup
   </div>
 
-  <!-- Right panel — form -->
-  <div class="auth-panel-right">
-    <div class="auth-card">
+  <h1 class="hero-headline">
+    Your code.<br>
+    <em>Finally organised.</em>
+  </h1>
 
-      <!-- Mobile brand -->
-      <div class="auth-mobile-brand">⚡ Snip<span>AI</span></div>
-      <div class="auth-mobile-sub">AI-powered code snippet manager</div>
+  <p class="hero-sub">
+    Paste a snippet. AI names it, tags it, and explains it in plain English.
+    Find anything in seconds. Share what you want, keep the rest private.
+  </p>
 
-      <!-- Tab switcher -->
-      <div class="auth-tabs">
-        <button class="auth-tab active" data-tab="login">Sign In</button>
-        <button class="auth-tab" data-tab="register">Register</button>
-      </div>
-
-      <!-- ── LOGIN FORM ───────────────────────────────── -->
-      <div class="auth-form" id="loginForm">
-
-        <!-- Social -->
-        <div class="auth-social-row">
-          <button class="auth-social-btn" id="googleLoginBtn" type="button">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-            </svg>
-            Google
-          </button>
-          <button class="auth-social-btn" id="githubLoginBtn" type="button">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
-            </svg>
-            GitHub
-          </button>
-        </div>
-
-        <div class="auth-divider">or continue with email</div>
-
-        <div class="auth-field">
-          <label for="loginEmail">Email</label>
-          <div class="auth-input-wrap">
-            <span class="auth-input-icon">✉</span>
-            <input class="auth-input" type="email" id="loginEmail"
-              placeholder="you@example.com" autocomplete="email" />
-          </div>
-        </div>
-
-        <div class="auth-field">
-          <label for="loginPassword">Password</label>
-          <div class="auth-input-wrap">
-            <span class="auth-input-icon">🔒</span>
-            <input class="auth-input" type="password" id="loginPassword"
-              placeholder="Your password" autocomplete="current-password" />
-            <button class="auth-eye" type="button" data-target="loginPassword" title="Show/hide">👁</button>
-          </div>
-        </div>
-
-        <button class="auth-submit" id="loginBtn" type="button">Sign In</button>
-        <p class="auth-error" id="loginError"></p>
-      </div>
-
-      <!-- ── REGISTER FORM ─────────────────────────────── -->
-      <div class="auth-form" id="registerForm" style="display:none">
-
-        <!-- Social -->
-        <div class="auth-social-row">
-          <button class="auth-social-btn" id="googleRegBtn" type="button">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-            </svg>
-            Google
-          </button>
-          <button class="auth-social-btn" id="githubRegBtn" type="button">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
-            </svg>
-            GitHub
-          </button>
-        </div>
-
-        <div class="auth-divider">or register with email</div>
-
-        <div class="auth-field">
-          <label for="regName">Full Name</label>
-          <div class="auth-input-wrap">
-            <span class="auth-input-icon">👤</span>
-            <input class="auth-input" type="text" id="regName"
-              placeholder="John Doe" autocomplete="name" />
-          </div>
-        </div>
-
-        <div class="auth-field">
-          <label for="regEmail">Email</label>
-          <div class="auth-input-wrap">
-            <span class="auth-input-icon">✉</span>
-            <input class="auth-input" type="email" id="regEmail"
-              placeholder="you@example.com" autocomplete="email" />
-          </div>
-        </div>
-
-        <div class="auth-field">
-          <label for="regPassword">Password</label>
-          <div class="auth-input-wrap">
-            <span class="auth-input-icon">🔒</span>
-            <input class="auth-input" type="password" id="regPassword"
-              placeholder="Min 8 characters" autocomplete="new-password" />
-            <button class="auth-eye" type="button" data-target="regPassword" title="Show/hide">👁</button>
-          </div>
-          <div class="pw-strength" id="pwStrength">
-            <div class="pw-strength-bar" id="pwStrengthBar"></div>
-          </div>
-        </div>
-
-        <div class="auth-field">
-          <label for="regConfirm">Confirm Password</label>
-          <div class="auth-input-wrap">
-            <span class="auth-input-icon">🔒</span>
-            <input class="auth-input" type="password" id="regConfirm"
-              placeholder="Repeat password" autocomplete="new-password" />
-          </div>
-        </div>
-
-        <button class="auth-submit" id="registerBtn" type="button">Create Account</button>
-        <p class="auth-error" id="registerError"></p>
-
-        <p class="auth-footer-note">
-          By creating an account you agree to our
-          <a href="#" onclick="return false">Terms of Service</a>
-        </p>
-      </div>
-
-    </div><!-- end auth-card -->
-  </div><!-- end auth-panel-right -->
-</div><!-- end auth-screen -->
-
-<!-- ══════════════════════════════════════════════════════
-     SETTINGS MODAL
-══════════════════════════════════════════════════════ -->
-<div class="modal-backdrop" id="settingsBackdrop" style="display:none">
-  <div class="modal-box">
-    <div class="modal-header">
-      <span>&#9881; Settings</span>
-      <button class="btn-icon" id="closeSettings">&#x2715;</button>
-    </div>
-    <div class="settings-section">
-      <label class="settings-label">Account</label>
-      <div class="settings-user" id="settingsUser"></div>
-      <button class="btn btn-danger settings-logout" id="logoutBtn">Sign Out</button>
-    </div>
-    <div class="settings-section">
-      <label class="settings-label">
-        ✦ Groq API Key
-        <span class="settings-hint">Required for AI features</span>
-      </label>
-      <div class="groq-key-wrap">
-        <input class="auth-input" type="password" id="groqKeyInput" placeholder="gsk_xxxxxxxxxxxxxxxx" style="padding-left:14px" />
-        <button class="btn btn-primary" id="saveGroqKey">Save</button>
-      </div>
-      <p class="settings-note">
-        Get a free key at <a href="https://console.groq.com" target="_blank">console.groq.com</a>.
-        Synced securely to your account.
-      </p>
-      <p class="groq-status" id="groqStatus"></p>
-    </div>
-  </div>
-</div>
-
-<!-- ══════════════════════════════════════════════════════
-     MAIN APP SHELL
-══════════════════════════════════════════════════════ -->
-<div class="app-shell" id="appShell" style="display:none">
-  <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-header">
-      <span class="logo">&#x26A1; SnipAI</span>
-      <div class="sidebar-header-actions">
-        <button class="btn-icon" id="settingsBtn" title="Settings">&#9881;</button>
-        <button class="btn-icon" id="newSnippetBtn" title="New Snippet">&#xff0b;</button>
-      </div>
-    </div>
-    <div class="user-bar" id="userBar"></div>
-
-    <!-- Sidebar nav tabs -->
-    <div class="sidebar-nav">
-      <button class="sidebar-nav-btn active" id="navMine" data-pane="mine">
-        &#128196; My Snippets
-      </button>
-      <button class="sidebar-nav-btn" id="navExplore" data-pane="explore">
-        &#127760; Explore
-      </button>
-    </div>
-
-    <!-- My Snippets pane -->
-    <div id="sidebarMinePane" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
-      <div class="search-wrap">
-        <input type="text" id="searchInput" placeholder="Search snippets..." autocomplete="off" />
-      </div>
-      <div class="filter-wrap">
-        <select id="langFilter">
-          <option value="">All Languages</option>
-          <option value="javascript">JavaScript</option>
-          <option value="typescript">TypeScript</option>
-          <option value="python">Python</option>
-          <option value="html">HTML</option>
-          <option value="css">CSS</option>
-          <option value="json">JSON</option>
-          <option value="bash">Bash</option>
-          <option value="sql">SQL</option>
-          <option value="plaintext">Plain Text</option>
-        </select>
-      </div>
-      <ul class="snippet-list" id="snippetList">
-        <li class="empty-state">No snippets yet. Create one!</li>
-      </ul>
-    </div>
-
-    <!-- Explore pane (inside sidebar — filter chips) -->
-    <div id="sidebarExplorePane" style="display:none;flex-direction:column;flex:1;overflow:hidden">
-      <div class="ex-filters-wrap">
-        <div class="ex-filters" id="exploreFilters">
-          <button class="ex-chip active" data-lang="">All</button>
-          <button class="ex-chip" data-lang="javascript">JavaScript</button>
-          <button class="ex-chip" data-lang="typescript">TypeScript</button>
-          <button class="ex-chip" data-lang="python">Python</button>
-          <button class="ex-chip" data-lang="html">HTML</button>
-          <button class="ex-chip" data-lang="css">CSS</button>
-          <button class="ex-chip" data-lang="bash">Bash</button>
-          <button class="ex-chip" data-lang="sql">SQL</button>
-          <button class="ex-chip" data-lang="json">JSON</button>
-        </div>
-      </div>
-      <div style="flex:1;overflow-y:auto;padding:10px 12px">
-        <p style="font-size:12px;color:var(--muted);text-align:center;padding:12px 0">
-          Open Explore to browse public snippets
-        </p>
-      </div>
-    </div>
-  </aside>
-
-  <main class="main" id="main">
-    <header class="toolbar">
-      <div class="toolbar-left">
-        <button class="btn-icon" id="sidebarToggle">&#9776;</button>
-        <span class="snippet-title-display" id="snippetTitleDisplay">Select a snippet</span>
-      </div>
-      <div class="toolbar-right" id="toolbarView" style="display:none">
-        <span class="lang-badge" id="langBadge"></span>
-        <span class="visibility-badge" id="visibilityBadge"></span>
-        <button class="btn btn-ghost"  id="copyBtn">Copy</button>
-        <button class="btn btn-ai"     id="explainBtn">&#10022; Explain</button>
-        <button class="btn btn-ghost"  id="editBtn">Edit</button>
-        <button class="btn btn-danger" id="deleteBtn">Delete</button>
-        <!-- Mobile: replaces all above buttons -->
-        <button class="btn-icon" id="moreActionsBtn" title="More actions">&#8942;</button>
-      </div>
-      <div class="toolbar-right" id="toolbarForm" style="display:none">
-        <span class="autosave-status" id="autosaveStatus"></span>
-        <button class="btn btn-ai"      id="analyzeBtn" type="button">&#10022; AI Fill</button>
-        <button class="btn btn-ghost"   id="cancelBtn"  type="button">Cancel</button>
-        <button class="btn btn-primary" id="saveBtn"    type="button">Save</button>
-      </div>
-    </header>
-
-    <section class="panel" id="viewPanel">
-      <div class="welcome" id="welcomeMsg">
-        <p>&#x26A1; Welcome to <strong>SnipAI</strong></p>
-        <p>Paste code, let AI tag and explain it for you.</p>
-        <button class="btn btn-primary" id="welcomeNewBtn">Create your first snippet</button>
-      </div>
-      <div class="snippet-detail" id="snippetDetail" style="display:none">
-        <p class="snippet-desc" id="snippetDesc"></p>
-        <div class="tags-wrap" id="tagsWrap"></div>
-        <div id="viewEditor" class="editor-wrap"></div>
-        <div class="explain-panel" id="explainPanel" style="display:none">
-          <div class="explain-header">
-            <span>&#10022; AI Explanation</span>
-            <button class="btn-icon" id="closeExplainBtn">&#x2715;</button>
-          </div>
-          <p class="explain-text" id="explainText"></p>
-        </div>
-      </div>
-    </section>
-
-    <section class="panel" id="formPanel" style="display:none">
-      <form class="snippet-form" id="snippetForm" onsubmit="return false">
-        <div class="ai-status" id="aiStatus" style="display:none">
-          <span class="ai-spinner"></span>
-          <span id="aiStatusText">AI is analyzing your code...</span>
-        </div>
-        <div class="form-row">
-          <input type="text" id="formTitle" placeholder="Snippet title..." />
-        </div>
-        <div class="form-row two-col">
-          <select id="formLang">
-            <option value="javascript">JavaScript</option>
-            <option value="typescript">TypeScript</option>
-            <option value="python">Python</option>
-            <option value="html">HTML</option>
-            <option value="css">CSS</option>
-            <option value="json">JSON</option>
-            <option value="bash">Bash</option>
-            <option value="sql">SQL</option>
-            <option value="plaintext">Plain Text</option>
-          </select>
-          <input type="text" id="formTags" placeholder="Tags: fetch, async, api" />
-        </div>
-        <div class="form-row">
-          <input type="text" id="formDesc" placeholder="Short description (optional)" />
-        </div>
-        <div class="form-row visibility-row">
-          <label class="toggle-wrap">
-            <input type="checkbox" id="formPublic" />
-            <span class="toggle-slider"></span>
-            <span class="toggle-label">Make public</span>
-          </label>
-          <span class="visibility-hint" id="visibilityHint">Only you can see this</span>
-        </div>
-        <div id="formEditor" class="editor-wrap"></div>
-      </form>
-    </section>
-  <!-- ── Explore View (main panel) ──────────────────────── -->
-  <div id="exploreView" style="display:none;flex-direction:column;flex:1;overflow:hidden">
-    <div class="ex-header">
-      <span class="ex-header-title">&#127760; Explore Public Snippets</span>
-      <span class="ex-header-sub" id="exploreSubtitle">Discover code from the community</span>
-    </div>
-    <div class="ex-grid-wrap">
-      <div class="ex-grid" id="exploreGrid"></div>
-      <div class="ex-loader" id="exploreLoader">
-        <div class="ex-spinner"></div>
-        <span>Loading snippets...</span>
-      </div>
-      <button class="ex-more-btn" id="exploreMore">Load more</button>
-    </div>
+  <div class="hero-actions">
+    <button class="btn-primary-lg" onclick="goToApp()">Get started free →</button>
+    <button class="btn-ghost-lg" onclick="document.getElementById('demo').scrollIntoView({behavior:'smooth'})">Watch the demo</button>
   </div>
 
-  </main>
-</div>
+  <div class="hero-meta">
+    <span class="hero-meta-item">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      Works offline (PWA)
+    </span>
+    <span class="hero-meta-item">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      Private by default
+    </span>
+    <span class="hero-meta-item">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      Your own AI key
+    </span>
+  </div>
 
-<div class="toast" id="toast"></div>
+  <!-- Floating badges -->
+  <div class="badge-float badge-1">✓ AI analyzed in 1.2s</div>
+  <div class="badge-float badge-2">✦ 3 tags auto-generated</div>
+  <div class="badge-float badge-3">🔒 Private by default</div>
 
-<!-- ── Bottom Action Sheet (mobile snippet actions) ──── -->
-<div class="action-sheet-backdrop" id="actionSheetBackdrop"></div>
-<div class="action-sheet" id="actionSheet">
-  <div class="action-sheet-handle"></div>
-  <div class="action-sheet-title" id="actionSheetTitle">Snippet actions</div>
-  <button class="sheet-btn" id="sheetCopyBtn">
-    <div class="sheet-btn-icon copy">&#128203;</div>
-    Copy code
-  </button>
-  <button class="sheet-btn primary" id="sheetExplainBtn">
-    <div class="sheet-btn-icon explain">&#10022;</div>
-    Explain with AI
-  </button>
-  <button class="sheet-btn" id="sheetEditBtn">
-    <div class="sheet-btn-icon edit">&#9998;</div>
-    Edit snippet
-  </button>
-  <button class="sheet-btn danger" id="sheetDeleteBtn">
-    <div class="sheet-btn-icon">&#128465;</div>
-    Delete snippet
-  </button>
-</div>
+  <!-- Terminal Demo -->
+  <div class="terminal-wrap" id="demo">
+    <div class="terminal">
+      <div class="terminal-bar">
+        <div class="t-dot t-dot-r"></div>
+        <div class="t-dot t-dot-y"></div>
+        <div class="t-dot t-dot-g"></div>
+        <span class="terminal-title">SnipAI — AI Fill demo</span>
+      </div>
+      <div class="terminal-body" id="terminalBody">
+        <span class="t-line"><span class="t-comment">// 1. Paste your messy code with no context...</span></span>
+        <span class="t-line"></span>
+        <span class="t-line"><span class="t-kw">async function</span> <span class="t-fn">x</span>(u) {</span>
+        <span class="t-line">  <span class="t-kw">const</span> r = <span class="t-kw">await</span> fetch(<span class="t-str">`/api/users/${u}`</span>);</span>
+        <span class="t-line">  <span class="t-kw">if</span> (!r.ok) <span class="t-kw">throw new</span> <span class="t-fn">Error</span>(r.status);</span>
+        <span class="t-line">  <span class="t-kw">return</span> r.<span class="t-fn">json</span>();</span>
+        <span class="t-line">}</span>
+        <span class="t-line"></span>
+        <span class="t-line"><span class="t-comment">// 2. Click ✦ AI Fill — watch it work...</span></span>
+        <span class="t-line" id="aiLine1"></span>
+        <span class="t-line" id="aiLine2"></span>
+        <span class="t-line" id="aiLine3"></span>
+        <span class="t-line" id="aiLine4"></span>
+        <span class="t-line" id="aiLine5"></span>
+        <span id="termCursor" class="t-cursor" style="display:none"></span>
+      </div>
+    </div>
+  </div>
+</section>
 
-<script src="appwrite.js"></script>
-<script src="auth.js"></script>
-<script src="explore.js"></script>
-<script src="app.js"></script>
+<!-- ── STORY ─────────────────────────────────────────────── -->
+<section class="story reveal">
+  <div class="story-inner">
+    <div>
+      <div class="story-label">The origin</div>
+      <h2 class="story-headline">Built on a<br><span>phone.</span><br>Seriously.</h2>
+      <div class="story-body">
+        <p>SnipAI was built entirely on an Android phone using Termux, Acode Editor, and Kiwi Browser. No laptop. No desktop. Just a developer who needed a tool and built it from scratch.</p>
+        <p>That means it works everywhere — desktop, mobile, tablet. Installed as a PWA it feels completely native. The whole stack is free forever: Appwrite for the backend, Vercel for hosting, your own Groq key for AI.</p>
+      </div>
+      <div class="story-stack">
+        <div class="stack-item">
+          <div class="stack-icon" style="background:rgba(79,70,229,0.1)">⚡</div>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text)">Vercel + Appwrite</div>
+            <div style="font-size:12px;color:var(--muted)">Free hosting, free backend, forever</div>
+          </div>
+        </div>
+        <div class="stack-item">
+          <div class="stack-icon" style="background:rgba(34,197,94,0.1)">🤖</div>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text)">Groq LLaMA 3.3</div>
+            <div style="font-size:12px;color:var(--muted)">Your key — no shared limits, no cost</div>
+          </div>
+        </div>
+        <div class="stack-item">
+          <div class="stack-icon" style="background:rgba(251,146,60,0.1)">📱</div>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text)">Installable PWA</div>
+            <div style="font-size:12px;color:var(--muted)">Works offline, feels native on any device</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="story-visual">
+      <div class="phone-glow"></div>
+      <div class="phone-mock">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="ps-header">
+            <span style="color:var(--accent2)">⚡</span> SnipAI
+          </div>
+          <div class="ps-item">
+            <div class="ps-item-title">Fetch User by ID</div>
+            <div class="ps-item-meta">javascript · async, fetch, api</div>
+          </div>
+          <div class="ps-item" style="border-left-color:#4ade80">
+            <div class="ps-item-title">Debounce Utility</div>
+            <div class="ps-item-meta">javascript · utils, timing</div>
+          </div>
+          <div class="ps-item" style="border-left-color:#f59e0b">
+            <div class="ps-item-title">SQL Join Query</div>
+            <div class="ps-item-meta">sql · joins, database · PUBLIC</div>
+          </div>
+          <div class="ps-item" style="border-left-color:#c084fc">
+            <div class="ps-item-title">CSS Grid Layout</div>
+            <div class="ps-item-meta">css · grid, layout, responsive</div>
+          </div>
+          <div style="margin-top:10px;padding:8px;background:rgba(129,140,248,0.08);border-radius:6px;border:1px solid rgba(129,140,248,0.15)">
+            <div style="font-size:9px;color:var(--accent2);font-weight:700;margin-bottom:4px">✦ AI Explanation</div>
+            <div style="font-size:9px;color:#6b7280;line-height:1.5">This function takes a user ID and fetches their data from a REST API endpoint...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── FEATURES ───────────────────────────────────────────── -->
+<section class="features" id="features">
+  <div class="section-header reveal">
+    <div class="section-tag">What it does</div>
+    <h2 class="section-title">Everything a developer needs</h2>
+    <p class="section-sub">No bloat. No subscriptions. No vendor lock-in.</p>
+  </div>
+  <div class="features-grid reveal">
+    <div class="feature-card">
+      <div class="feature-icon">✦</div>
+      <div class="feature-title">AI Auto-fill</div>
+      <div class="feature-desc">Paste raw code and click AI Fill. It names the snippet, writes a description, detects the language, and generates tags in under 2 seconds.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">💬</div>
+      <div class="feature-title">AI Explanation</div>
+      <div class="feature-desc">Click Explain on any snippet and get a plain-English breakdown in under 120 words. Perfect for revisiting old code or sharing with teammates.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🔍</div>
+      <div class="feature-title">Instant Search</div>
+      <div class="feature-desc">Full-text search across all your snippets by title, tags, or language. Filter by language. Results update as you type.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🔒</div>
+      <div class="feature-title">Private by Default</div>
+      <div class="feature-desc">Every snippet is private until you choose to share it. Public snippets get a shareable link and appear in the community Explore feed.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🌐</div>
+      <div class="feature-title">Community Explore</div>
+      <div class="feature-desc">Browse public snippets from developers around the world. Filter by language, copy any snippet, see who wrote it. A living library of real code.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📱</div>
+      <div class="feature-title">Works Everywhere</div>
+      <div class="feature-desc">Install as a PWA on Android, iOS, or desktop. Works offline. Monaco editor with full syntax highlighting for 10+ languages.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── EXPLORE PREVIEW ────────────────────────────────────── -->
+<section class="explore-preview" id="explore">
+  <div class="section-header reveal">
+    <div class="section-tag">Community</div>
+    <h2 class="section-title">Explore public snippets</h2>
+    <p class="section-sub">Real code shared by real developers. Copy anything with one click.</p>
+  </div>
+  <div class="ep-grid reveal">
+    <!-- Card 1 -->
+    <div class="ep-card">
+      <div class="ep-accent" style="background:#f7df1e"></div>
+      <div class="ep-inner">
+        <div class="ep-top">
+          <div class="ep-lang" style="color:#f7df1e;border-color:#f7df1e33;background:#f7df1e11">JS</div>
+        </div>
+        <div class="ep-title">Debounce Utility</div>
+        <div class="ep-desc">Delays function execution until after wait ms</div>
+        <div class="ep-code">function debounce(fn, wait) {
+  let t;
+  return (...args) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...args), wait);
+  };
+}</div>
+        <div class="ep-footer">
+          <div class="ep-author">
+            <div class="ep-av" style="background:#7c3aed">AO</div>
+            <span>adeolaoluwole</span>
+          </div>
+          <span style="font-size:10px;color:var(--muted)">utils, timing</span>
+        </div>
+      </div>
+    </div>
+    <!-- Card 2 -->
+    <div class="ep-card">
+      <div class="ep-accent" style="background:#3178c6"></div>
+      <div class="ep-inner">
+        <div class="ep-top">
+          <div class="ep-lang" style="color:#3178c6;border-color:#3178c633;background:#3178c611">TS</div>
+        </div>
+        <div class="ep-title">Generic API Fetcher</div>
+        <div class="ep-desc">Type-safe fetch wrapper with error handling</div>
+        <div class="ep-code">async function apiFetch&lt;T&gt;(
+  url: string
+): Promise&lt;T&gt; {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(res.statusText);
+  return res.json() as T;
+}</div>
+        <div class="ep-footer">
+          <div class="ep-author">
+            <div class="ep-av" style="background:#0ea5e9">SK</div>
+            <span>samkalu</span>
+          </div>
+          <span style="font-size:10px;color:var(--muted)">fetch, typescript</span>
+        </div>
+      </div>
+    </div>
+    <!-- Card 3 -->
+    <div class="ep-card">
+      <div class="ep-accent" style="background:#4584b6"></div>
+      <div class="ep-inner">
+        <div class="ep-top">
+          <div class="ep-lang" style="color:#4584b6;border-color:#4584b633;background:#4584b611">PY</div>
+        </div>
+        <div class="ep-title">Flatten Nested List</div>
+        <div class="ep-desc">Recursively flattens arbitrarily nested lists</div>
+        <div class="ep-code">def flatten(lst):
+    result = []
+    for item in lst:
+        if isinstance(item, list):
+            result.extend(flatten(item))
+        else:
+            result.append(item)
+    return result</div>
+        <div class="ep-footer">
+          <div class="ep-author">
+            <div class="ep-av" style="background:#16a34a">EF</div>
+            <span>emekafavour</span>
+          </div>
+          <span style="font-size:10px;color:var(--muted)">python, recursion</span>
+        </div>
+      </div>
+    </div>
+    <!-- Card 4 -->
+    <div class="ep-card">
+      <div class="ep-accent" style="background:#f59e0b"></div>
+      <div class="ep-inner">
+        <div class="ep-top">
+          <div class="ep-lang" style="color:#f59e0b;border-color:#f59e0b33;background:#f59e0b11">SQL</div>
+        </div>
+        <div class="ep-title">Paginated Query</div>
+        <div class="ep-desc">Efficient cursor-based pagination pattern</div>
+        <div class="ep-code">SELECT * FROM posts
+WHERE created_at &lt; :cursor
+ORDER BY created_at DESC
+LIMIT :page_size;</div>
+        <div class="ep-footer">
+          <div class="ep-author">
+            <div class="ep-av" style="background:#dc2626">TO</div>
+            <span>tobiolawale</span>
+          </div>
+          <span style="font-size:10px;color:var(--muted)">sql, pagination</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="text-align:center;margin-top:48px;position:relative;z-index:1" class="reveal">
+    <button class="btn-primary-lg" onclick="goToApp()">Browse all public snippets →</button>
+  </div>
+</section>
+
+<!-- ── SOCIAL PROOF ───────────────────────────────────────── -->
+<section class="social-proof reveal">
+  <div class="sp-inner">
+    <div class="section-tag" style="text-align:center">Built for real use</div>
+    <div class="sp-stats">
+      <div class="sp-stat">
+        <div class="sp-num">100%</div>
+        <div class="sp-label">Free forever — no hidden fees</div>
+      </div>
+      <div class="sp-stat">
+        <div class="sp-num">10+</div>
+        <div class="sp-label">Languages with syntax highlighting</div>
+      </div>
+      <div class="sp-stat">
+        <div class="sp-num">&lt;2s</div>
+        <div class="sp-label">Average AI analysis time</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA ───────────────────────────────────────────────── -->
+<section class="cta-section reveal">
+  <div class="cta-glow"></div>
+  <h2 class="cta-headline">Stop losing<br>your snippets.</h2>
+  <p class="cta-sub">Join developers who finally have their code organized.</p>
+  <div class="cta-actions">
+    <button class="btn-primary-lg" onclick="goToApp()">Create free account →</button>
+  </div>
+  <p class="cta-note">No credit card. No time limit. Free forever.</p>
+</section>
+
+<!-- ── FOOTER ────────────────────────────────────────────── -->
+<footer class="footer">
+  <div class="footer-logo">⚡ Snip<span>AI</span></div>
+  <div class="footer-links">
+    <a href="#features">Features</a>
+    <a href="#explore">Explore</a>
+    <a href="https://github.com/codingrot17/snipai-frontend/" target="_blank">GitHub</a>
+  </div>
+  <div class="footer-credit">Built on Android · Powered by Groq · Hosted on Vercel</div>
+</footer>
+
 <script>
-  // SW registration with auto-update — new deploys reload automatically
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', async () => {
-      try {
-        const reg = await navigator.serviceWorker.register('/sw.js');
-        reg.update();
-        reg.addEventListener('updatefound', () => {
-          const newSW = reg.installing;
-          newSW.addEventListener('statechange', () => {
-            if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
-              newSW.postMessage('SKIP_WAITING');
-            }
-          });
-        });
-        let refreshing = false;
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-          if (!refreshing) { refreshing = true; window.location.reload(); }
-        });
-      } catch(e) { console.warn('SW:', e); }
-    });
-  }
-  window.addEventListener('load', () => window.initApp());
+// ── Redirect logged-in users to app ───────────────────────
+function goToApp() {
+  window.location.href = '/app';
+}
+
+// Check if user is already logged in via localStorage
+(function checkAuth() {
+  try {
+    const user = localStorage.getItem('snipai_user');
+    if (user && JSON.parse(user)) {
+      // Verified cached session — go straight to app
+      window.location.replace('/app');
+    }
+  } catch(e) {}
+})();
+
+// ── Scroll reveal ──────────────────────────────────────────
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.classList.add('visible');
+      observer.unobserve(e.target);
+    }
+  });
+}, { threshold: 0.12 });
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+// ── Terminal animation ─────────────────────────────────────
+const AI_LINES = [
+  { id:'aiLine1', delay:2000,  html:'<span class="t-comment">// ✦ AI analyzing...</span>' },
+  { id:'aiLine2', delay:3200,  html:'<span class="t-key">title</span><span class="t-muted">:</span>  <span class="t-val">"Fetch User by ID"</span>' },
+  { id:'aiLine3', delay:3700,  html:'<span class="t-key">lang</span><span class="t-muted">:</span>   <span class="t-val">"javascript"</span>' },
+  { id:'aiLine4', delay:4200,  html:'<span class="t-key">tags</span><span class="t-muted">:</span>   <span class="t-val">["fetch","async","api","users"]</span>' },
+  { id:'aiLine5', delay:4700,  html:'<span class="t-success">✓ Saved automatically</span>' },
+];
+
+const cursor = document.getElementById('termCursor');
+let animDone = false;
+
+function runTerminalAnim() {
+  if (animDone) return;
+  animDone = true;
+  cursor.style.display = 'inline-block';
+  AI_LINES.forEach(({id, delay, html}) => {
+    setTimeout(() => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.innerHTML = html;
+        // move cursor after last line
+        if (id === 'aiLine5') {
+          cursor.style.display = 'none';
+          // restart after pause
+          setTimeout(() => {
+            AI_LINES.forEach(({id}) => {
+              const el = document.getElementById(id);
+              if (el) el.innerHTML = '';
+            });
+            animDone = false;
+            setTimeout(runTerminalAnim, 1200);
+          }, 3000);
+        }
+      }
+    }, delay);
+  });
+}
+
+// Start animation when terminal is in view
+const termObs = new IntersectionObserver(entries => {
+  if (entries[0].isIntersecting) runTerminalAnim();
+}, { threshold: 0.4 });
+const termEl = document.getElementById('demo');
+if (termEl) termObs.observe(termEl);
 </script>
 </body>
 </html>
