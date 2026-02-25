@@ -1,0 +1,537 @@
+/* ══════════════════════════════════════════════════════════
+   EXPLORE FEED + BOTTOM ACTION SHEET + MOBILE DELETE FIX
+══════════════════════════════════════════════════════════ */
+
+/* ── Sidebar nav tabs ─────────────────────────────────────── */
+.sidebar-nav {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.sidebar-nav-btn {
+    flex: 1;
+    padding: 10px 8px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.18s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    touch-action: manipulation;
+    letter-spacing: 0.3px;
+}
+
+.sidebar-nav-btn:hover {
+    color: var(--text);
+}
+.sidebar-nav-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+}
+
+/* ── Explore panel in sidebar ─────────────────────────────── */
+#sidebarExplorePane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* ── Language filter chips ────────────────────────────────── */
+.ex-filters-wrap {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    scrollbar-width: none;
+    flex-shrink: 0;
+}
+.ex-filters-wrap::-webkit-scrollbar {
+    display: none;
+}
+
+.ex-filters {
+    display: flex;
+    gap: 6px;
+    width: max-content;
+}
+
+.ex-chip {
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+    touch-action: manipulation;
+    letter-spacing: 0.3px;
+}
+.ex-chip:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+.ex-chip.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+/* ── Main explore view (right panel) ─────────────────────── */
+#exploreView {
+    flex: 1;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* ── Grid ─────────────────────────────────────────────────── */
+.ex-grid-wrap {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.ex-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    align-items: start;
+}
+
+@media (max-width: 600px) {
+    .ex-grid {
+        grid-template-columns: 1fr;
+    }
+    .ex-grid-wrap {
+        padding: 12px;
+    }
+}
+
+/* ── Card ─────────────────────────────────────────────────── */
+.ex-card {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    transition:
+        transform 0.18s,
+        box-shadow 0.18s;
+    animation: card-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+    cursor: default;
+}
+
+@keyframes card-in {
+    from {
+        opacity: 0;
+        transform: translateY(14px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.ex-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+    border-color: rgba(124, 106, 247, 0.25);
+}
+
+/* Left accent bar */
+.ex-card-accent {
+    width: 3px;
+    flex-shrink: 0;
+    opacity: 0.8;
+}
+
+.ex-card-inner {
+    flex: 1;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+/* Top row */
+.ex-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.ex-lang-pill {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid;
+    letter-spacing: 0.5px;
+    font-family: "Fira Code", monospace;
+}
+
+.ex-copy-btn {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    transition:
+        color 0.15s,
+        background 0.15s;
+    touch-action: manipulation;
+}
+.ex-copy-btn:hover {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+/* Title */
+.ex-card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin: 0;
+}
+
+/* Description */
+.ex-card-desc {
+    font-size: 12px;
+    color: var(--muted);
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.5;
+}
+
+/* Code preview */
+.ex-code {
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 6px;
+    padding: 10px;
+    margin: 0;
+    font-size: 11px;
+    font-family: "Fira Code", "Cascadia Code", monospace;
+    line-height: 1.6;
+    color: #a8b5c8;
+    overflow: hidden;
+    max-height: 140px;
+    white-space: pre;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.ex-code::-webkit-scrollbar {
+    display: none;
+}
+.ex-code code {
+    display: block;
+}
+
+/* Footer */
+.ex-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 2px;
+    flex-wrap: wrap;
+}
+
+.ex-author {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+}
+
+.ex-avatar {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.ex-author-name {
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ex-footer-right {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.ex-tag {
+    font-size: 10px;
+    background: rgba(124, 106, 247, 0.1);
+    color: var(--accent);
+    border-radius: 3px;
+    padding: 1px 6px;
+}
+
+.ex-date {
+    font-size: 10px;
+    color: var(--muted);
+    white-space: nowrap;
+}
+
+/* ── Loader ───────────────────────────────────────────────── */
+.ex-loader {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 20px;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.ex-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+}
+
+/* ── Load more btn ────────────────────────────────────────── */
+.ex-more-btn {
+    display: none;
+    margin: 20px auto 0;
+    padding: 10px 32px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    touch-action: manipulation;
+}
+.ex-more-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+.ex-more-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ── Empty state ──────────────────────────────────────────── */
+.ex-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+}
+.ex-empty-icon {
+    font-size: 40px;
+    margin-bottom: 14px;
+}
+.ex-empty-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 6px;
+}
+.ex-empty-sub {
+    font-size: 13px;
+}
+
+/* ── Explore header ───────────────────────────────────────── */
+.ex-header {
+    padding: 14px 20px 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.ex-header-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+}
+.ex-header-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-left: auto;
+}
+
+/* ══════════════════════════════════════════════════════════
+   BOTTOM ACTION SHEET (replaces hidden mobile buttons)
+══════════════════════════════════════════════════════════ */
+.action-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 8000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+}
+.action-sheet-backdrop.open {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.action-sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-radius: 16px 16px 0 0;
+    padding: 8px 16px 32px;
+    z-index: 8001;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    max-height: 70vh;
+    overflow-y: auto;
+}
+.action-sheet.open {
+    transform: translateY(0);
+}
+
+.action-sheet-handle {
+    width: 36px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 4px;
+    margin: 8px auto 16px;
+}
+
+.action-sheet-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0 4px 8px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sheet-btn {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    padding: 14px 4px;
+    border: none;
+    background: transparent;
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    text-align: left;
+    touch-action: manipulation;
+    transition: background 0.15s;
+    border-radius: 8px;
+}
+.sheet-btn:last-child {
+    border-bottom: none;
+}
+.sheet-btn:active {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.sheet-btn-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.sheet-btn.danger {
+    color: var(--danger);
+}
+.sheet-btn.danger .sheet-btn-icon {
+    background: rgba(239, 68, 68, 0.12);
+}
+.sheet-btn.primary {
+    color: var(--accent);
+}
+.sheet-btn.primary .sheet-btn-icon {
+    background: rgba(124, 106, 247, 0.12);
+}
+.sheet-btn-icon.copy {
+    background: rgba(255, 255, 255, 0.06);
+}
+.sheet-btn-icon.edit {
+    background: rgba(167, 139, 250, 0.1);
+}
+.sheet-btn-icon.explain {
+    background: rgba(167, 139, 250, 0.1);
+}
+
+/* ── Mobile toolbar fix — show ⋯ button ──────────────────── */
+#moreActionsBtn {
+    display: none;
+}
+
+@media (max-width: 600px) {
+    /* Hide individual action buttons on mobile */
+    #copyBtn,
+    #deleteBtn,
+    #editBtn,
+    #explainBtn {
+        display: none !important;
+    }
+    /* Show the ⋯ more button instead */
+    #moreActionsBtn {
+        display: flex !important;
+    }
+    /* Keep lang + visibility badges */
+    .autosave-status {
+        display: none;
+    }
+    .visibility-hint {
+        display: none;
+    }
+}

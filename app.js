@@ -86,12 +86,72 @@ function showAuth() {
 }
 
 // ── Auth setup ─────────────────────────────────────────────
-// Auth logic lives in auth.js
-// This hook is called by auth.js after successful login/register
-window.onAuthSuccess = async function(user) {
-  showApp(user);
-  await loadSnippets();
-};
+function setupAuth() {
+  const $ = id => document.getElementById(id);
+
+  // Tab switching
+  document.querySelectorAll('.auth-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      const t = tab.dataset.tab;
+      $('loginForm').classList.toggle('hidden',    t !== 'login');
+      $('registerForm').classList.toggle('hidden', t !== 'register');
+    });
+  });
+
+  // Login
+  $('loginBtn').addEventListener('click', async () => {
+    const email = $('loginEmail').value.trim();
+    const pass  = $('loginPassword').value;
+    const err   = $('loginError');
+    err.textContent = '';
+    if (!email || !pass) { err.textContent = 'Please fill all fields'; return; }
+    $('loginBtn').textContent = 'Signing in...';
+    $('loginBtn').disabled = true;
+    try {
+      const user = await Auth.login(email, pass);
+      showApp(user);
+      await loadSnippets();
+    } catch (e) {
+      err.textContent = e.message?.includes('Invalid') ? 'Wrong email or password' : 'Login failed. Try again.';
+    } finally {
+      $('loginBtn').textContent = 'Sign In';
+      $('loginBtn').disabled = false;
+    }
+  });
+
+  // Register
+  $('registerBtn').addEventListener('click', async () => {
+    const name  = $('regName').value.trim();
+    const email = $('regEmail').value.trim();
+    const pass  = $('regPassword').value;
+    const err   = $('registerError');
+    err.textContent = '';
+    if (!name || !email || !pass) { err.textContent = 'Please fill all fields'; return; }
+    if (pass.length < 8) { err.textContent = 'Password must be at least 8 characters'; return; }
+    $('registerBtn').textContent = 'Creating...';
+    $('registerBtn').disabled = true;
+    try {
+      const user = await Auth.register(name, email, pass);
+      showApp(user);
+      await loadSnippets();
+    } catch (e) {
+      err.textContent = e.message?.includes('already') ? 'Email already in use' : 'Registration failed. Try again.';
+    } finally {
+      $('registerBtn').textContent = 'Create Account';
+      $('registerBtn').disabled = false;
+    }
+  });
+
+  // Enter key support
+  ['loginEmail','loginPassword'].forEach(id => {
+    $(id).addEventListener('keydown', e => { if (e.key === 'Enter') $('loginBtn').click(); });
+  });
+  ['regName','regEmail','regPassword'].forEach(id => {
+    $(id).addEventListener('keydown', e => { if (e.key === 'Enter') $('registerBtn').click(); });
+  });
+}
 
 // ── Settings ───────────────────────────────────────────────
 function setupSettings() {
@@ -149,6 +209,98 @@ function setupSidebar() {
   });
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && isMobile() && !el.sidebar.classList.contains('hidden')) closeSidebar();
+  });
+
+  // ── Sidebar nav: My Snippets / Explore ──────────────────
+  let exploreReady = false;
+  window.currentSidebarPane = 'mine';
+
+  window.switchSidebarPane = function(pane) {
+    window.currentSidebarPane = pane;
+    const minePane    = document.getElementById('sidebarMinePane');
+    const explorePane = document.getElementById('sidebarExplorePane');
+    const exploreView = document.getElementById('exploreView');
+    if (minePane)    minePane.style.display    = pane === 'mine'    ? 'flex' : 'none';
+    if (explorePane) explorePane.style.display = pane === 'explore' ? 'flex' : 'none';
+    if (exploreView) exploreView.style.display = pane === 'explore' ? 'flex' : 'none';
+
+    document.querySelectorAll('.sidebar-nav-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.pane === pane)
+    );
+
+    if (pane === 'explore') {
+      showPanel('none');
+      showToolbar('none');
+      el.snippetTitleDisplay.textContent = 'Explore';
+      el.snippetTitleDisplay.classList.remove('active');
+      if (!exploreReady) {
+        exploreReady = true;
+        if (typeof setupExplore === 'function') setupExplore();
+      }
+      if (isMobile()) closeSidebar();
+    } else {
+      if (activeId) openSnippet(activeId);
+      else { showPanel('view'); showToolbar('none'); }
+    }
+  };
+
+  document.querySelectorAll('.sidebar-nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => window.switchSidebarPane(btn.dataset.pane));
+  });
+
+  // ── Action Sheet (mobile more button) ───────────────────
+  function openActionSheet() {
+    const s = snippets.find(x => x.id === activeId);
+    if (!s) return;
+    document.getElementById('actionSheetTitle').textContent = s.title;
+    document.getElementById('actionSheetBackdrop').classList.add('open');
+    document.getElementById('actionSheet').classList.add('open');
+  }
+  function closeActionSheet() {
+    document.getElementById('actionSheetBackdrop').classList.remove('open');
+    document.getElementById('actionSheet').classList.remove('open');
+  }
+
+  document.getElementById('moreActionsBtn').addEventListener('click', openActionSheet);
+  document.getElementById('actionSheetBackdrop').addEventListener('click', closeActionSheet);
+
+  document.getElementById('sheetCopyBtn').addEventListener('click', () => {
+    closeActionSheet();
+    const s = snippets.find(x => x.id === activeId);
+    if (!s) return;
+    navigator.clipboard.writeText(s.code)
+      .then(() => showToast('Copied to clipboard'))
+      .catch(() => showToast('Copy failed', 'error'));
+  });
+
+  document.getElementById('sheetExplainBtn').addEventListener('click', () => {
+    closeActionSheet();
+    setTimeout(() => explainSnippet(), 300);
+  });
+
+  document.getElementById('sheetEditBtn').addEventListener('click', () => {
+    closeActionSheet();
+    const s = snippets.find(x => x.id === activeId);
+    if (s) setTimeout(() => openForm(s), 300);
+  });
+
+  document.getElementById('sheetDeleteBtn').addEventListener('click', async () => {
+    closeActionSheet();
+    if (!activeId) return;
+    const s = snippets.find(x => x.id === activeId);
+    await new Promise(r => setTimeout(r, 350)); // wait for sheet to close
+    if (!confirm('Delete "' + (s?.title || 'snippet') + '"?')) return;
+    try {
+      await Snippets.delete(activeId);
+      activeId = null;
+      showToast('Snippet deleted');
+      el.welcomeMsg.style.display    = 'flex';
+      el.snippetDetail.style.display = 'none';
+      el.snippetTitleDisplay.textContent = 'Select a snippet';
+      el.snippetTitleDisplay.classList.remove('active');
+      showPanel('view'); showToolbar('none');
+      await loadSnippets();
+    } catch { showToast('Delete failed', 'error'); }
   });
 }
 
@@ -210,6 +362,7 @@ async function saveSnippet(silent = false) {
     if (editingId) {
       result = await Snippets.update(editingId, currentUser.$id, payload);
     } else {
+      payload.authorName = currentUser.name || '';
       result = await Snippets.create(currentUser.$id, payload);
       editingId = result.id;
     }
@@ -510,7 +663,7 @@ function setupPWA() {
 // Called from index.html after Monaco and Appwrite SDK are loaded
 window.initApp = function() {
   resolveDOM();
-  if (typeof setupAuth === 'function') setupAuth(); // from auth.js
+  setupAuth();
   setupSettings();
   setupSidebar();
   setupAppEvents();
@@ -518,15 +671,6 @@ window.initApp = function() {
 
   require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } });
   require(['vs/editor/editor.main'], async () => {
-
-  // Handle OAuth redirect (Google/GitHub redirect back to app)
-  const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get('oauth') === 'success') {
-    // Clean URL
-    window.history.replaceState({}, '', window.location.pathname);
-    // getUser will pick up the session Appwrite set via cookie
-  }
-
     // Try cached user immediately for instant UI
     const cached = Auth.getCachedUser();
     if (cached) {

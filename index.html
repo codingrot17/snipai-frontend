@@ -14,6 +14,7 @@
   <link rel="icon" type="image/png" href="/icons/icon-192.png" />
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="auth.css" />
+  <link rel="stylesheet" href="explore.css" />
   <script src="https://cdn.jsdelivr.net/npm/appwrite@16/dist/iife/sdk.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
 </head>
@@ -249,26 +250,62 @@
       </div>
     </div>
     <div class="user-bar" id="userBar"></div>
-    <div class="search-wrap">
-      <input type="text" id="searchInput" placeholder="Search snippets..." autocomplete="off" />
+
+    <!-- Sidebar nav tabs -->
+    <div class="sidebar-nav">
+      <button class="sidebar-nav-btn active" id="navMine" data-pane="mine">
+        &#128196; My Snippets
+      </button>
+      <button class="sidebar-nav-btn" id="navExplore" data-pane="explore">
+        &#127760; Explore
+      </button>
     </div>
-    <div class="filter-wrap">
-      <select id="langFilter">
-        <option value="">All Languages</option>
-        <option value="javascript">JavaScript</option>
-        <option value="typescript">TypeScript</option>
-        <option value="python">Python</option>
-        <option value="html">HTML</option>
-        <option value="css">CSS</option>
-        <option value="json">JSON</option>
-        <option value="bash">Bash</option>
-        <option value="sql">SQL</option>
-        <option value="plaintext">Plain Text</option>
-      </select>
+
+    <!-- My Snippets pane -->
+    <div id="sidebarMinePane" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+      <div class="search-wrap">
+        <input type="text" id="searchInput" placeholder="Search snippets..." autocomplete="off" />
+      </div>
+      <div class="filter-wrap">
+        <select id="langFilter">
+          <option value="">All Languages</option>
+          <option value="javascript">JavaScript</option>
+          <option value="typescript">TypeScript</option>
+          <option value="python">Python</option>
+          <option value="html">HTML</option>
+          <option value="css">CSS</option>
+          <option value="json">JSON</option>
+          <option value="bash">Bash</option>
+          <option value="sql">SQL</option>
+          <option value="plaintext">Plain Text</option>
+        </select>
+      </div>
+      <ul class="snippet-list" id="snippetList">
+        <li class="empty-state">No snippets yet. Create one!</li>
+      </ul>
     </div>
-    <ul class="snippet-list" id="snippetList">
-      <li class="empty-state">No snippets yet. Create one!</li>
-    </ul>
+
+    <!-- Explore pane (inside sidebar — filter chips) -->
+    <div id="sidebarExplorePane" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+      <div class="ex-filters-wrap">
+        <div class="ex-filters" id="exploreFilters">
+          <button class="ex-chip active" data-lang="">All</button>
+          <button class="ex-chip" data-lang="javascript">JavaScript</button>
+          <button class="ex-chip" data-lang="typescript">TypeScript</button>
+          <button class="ex-chip" data-lang="python">Python</button>
+          <button class="ex-chip" data-lang="html">HTML</button>
+          <button class="ex-chip" data-lang="css">CSS</button>
+          <button class="ex-chip" data-lang="bash">Bash</button>
+          <button class="ex-chip" data-lang="sql">SQL</button>
+          <button class="ex-chip" data-lang="json">JSON</button>
+        </div>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:10px 12px">
+        <p style="font-size:12px;color:var(--muted);text-align:center;padding:12px 0">
+          Open Explore to browse public snippets
+        </p>
+      </div>
+    </div>
   </aside>
 
   <main class="main" id="main">
@@ -284,6 +321,8 @@
         <button class="btn btn-ai"     id="explainBtn">&#10022; Explain</button>
         <button class="btn btn-ghost"  id="editBtn">Edit</button>
         <button class="btn btn-danger" id="deleteBtn">Delete</button>
+        <!-- Mobile: replaces all above buttons -->
+        <button class="btn-icon" id="moreActionsBtn" title="More actions">&#8942;</button>
       </div>
       <div class="toolbar-right" id="toolbarForm" style="display:none">
         <span class="autosave-status" id="autosaveStatus"></span>
@@ -350,13 +389,53 @@
         <div id="formEditor" class="editor-wrap"></div>
       </form>
     </section>
+  <!-- ── Explore View (main panel) ──────────────────────── -->
+  <div id="exploreView" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+    <div class="ex-header">
+      <span class="ex-header-title">&#127760; Explore Public Snippets</span>
+      <span class="ex-header-sub" id="exploreSubtitle">Discover code from the community</span>
+    </div>
+    <div class="ex-grid-wrap">
+      <div class="ex-grid" id="exploreGrid"></div>
+      <div class="ex-loader" id="exploreLoader">
+        <div class="ex-spinner"></div>
+        <span>Loading snippets...</span>
+      </div>
+      <button class="ex-more-btn" id="exploreMore">Load more</button>
+    </div>
+  </div>
+
   </main>
 </div>
 
 <div class="toast" id="toast"></div>
 
+<!-- ── Bottom Action Sheet (mobile snippet actions) ──── -->
+<div class="action-sheet-backdrop" id="actionSheetBackdrop"></div>
+<div class="action-sheet" id="actionSheet">
+  <div class="action-sheet-handle"></div>
+  <div class="action-sheet-title" id="actionSheetTitle">Snippet actions</div>
+  <button class="sheet-btn" id="sheetCopyBtn">
+    <div class="sheet-btn-icon copy">&#128203;</div>
+    Copy code
+  </button>
+  <button class="sheet-btn primary" id="sheetExplainBtn">
+    <div class="sheet-btn-icon explain">&#10022;</div>
+    Explain with AI
+  </button>
+  <button class="sheet-btn" id="sheetEditBtn">
+    <div class="sheet-btn-icon edit">&#9998;</div>
+    Edit snippet
+  </button>
+  <button class="sheet-btn danger" id="sheetDeleteBtn">
+    <div class="sheet-btn-icon">&#128465;</div>
+    Delete snippet
+  </button>
+</div>
+
 <script src="appwrite.js"></script>
 <script src="auth.js"></script>
+<script src="explore.js"></script>
 <script src="app.js"></script>
 <script>
   // SW registration with auto-update — new deploys reload automatically

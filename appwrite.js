@@ -119,6 +119,7 @@ const Snippets = {
       description: doc.description ?? '',
       isPublic:    doc.isPublic    ?? false,
       authorId:    doc.authorId,
+      authorName:  doc.authorName  ?? '',
       createdAt:   doc.$createdAt,
     };
   },
@@ -146,6 +147,7 @@ const Snippets = {
         description: data.description ?? '',
         isPublic:    data.isPublic    ?? false,
         authorId:    userId,
+        authorName:  data.authorName ?? '',
       },
       this._perms(userId, data.isPublic ?? false)
     );
