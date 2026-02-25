@@ -21,6 +21,7 @@ const PRECACHE_URLS = [
     "/auth.css",
     "/app.js",
     "/auth.js",
+    "/explore.js",
     "/appwrite.js",
     "/manifest.json"
 ];
