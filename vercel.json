@@ -1,17 +1,21 @@
 {
-  "outputDirectory": ".",
-  "routes": [{
-    "src": "/app",
-    "dest": "/index.html"
+  "rewrites": [{
+    "source": "/app",
+    "destination": "/index.html"
   },
     {
-      "src": "/app/(.*)",
-      "dest": "/index.html"
-    },
-    {
-      "src": "/",
-      "dest": "/landing.html"
+      "source": "/app/(.*)",
+      "destination": "/index.html"
     }],
+  "redirects": [{
+    "source": "/",
+    "has": [{
+      "type": "cookie",
+      "key": "snipai_user"
+    }],
+    "destination": "/app",
+    "permanent": false
+  }],
   "headers": [{
     "source": "/sw.js",
     "headers": [{
